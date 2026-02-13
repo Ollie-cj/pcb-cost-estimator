@@ -1,0 +1,156 @@
+# Cost Model Configuration
+# This file contains all pricing parameters for the deterministic cost estimation engine.
+# All prices are in USD unless otherwise specified.
+
+# Category-based pricing
+# Format: low/typical/high estimates for each component category
+category_pricing:
+  resistor:
+    base_price_low: 0.001
+    base_price_typical: 0.005
+    base_price_high: 0.02
+
+  capacitor:
+    base_price_low: 0.002
+    base_price_typical: 0.01
+    base_price_high: 0.05
+
+  inductor:
+    base_price_low: 0.01
+    base_price_typical: 0.05
+    base_price_high: 0.20
+
+  ic:
+    base_price_low: 0.50
+    base_price_typical: 2.00
+    base_price_high: 10.00
+
+  connector:
+    base_price_low: 0.10
+    base_price_typical: 0.50
+    base_price_high: 2.00
+
+  diode:
+    base_price_low: 0.01
+    base_price_typical: 0.05
+    base_price_high: 0.20
+
+  transistor:
+    base_price_low: 0.02
+    base_price_typical: 0.10
+    base_price_high: 0.50
+
+  led:
+    base_price_low: 0.02
+    base_price_typical: 0.10
+    base_price_high: 0.50
+
+  crystal:
+    base_price_low: 0.10
+    base_price_typical: 0.30
+    base_price_high: 1.00
+
+  switch:
+    base_price_low: 0.05
+    base_price_typical: 0.20
+    base_price_high: 1.00
+
+  relay:
+    base_price_low: 0.50
+    base_price_typical: 1.50
+    base_price_high: 5.00
+
+  fuse:
+    base_price_low: 0.05
+    base_price_typical: 0.20
+    base_price_high: 1.00
+
+  transformer:
+    base_price_low: 0.50
+    base_price_typical: 2.00
+    base_price_high: 10.00
+
+  other:
+    base_price_low: 0.05
+    base_price_typical: 0.50
+    base_price_high: 2.00
+
+  unknown:
+    base_price_low: 0.10
+    base_price_typical: 1.00
+    base_price_high: 5.00
+
+# Package-based pricing multipliers
+# These are applied on top of the category base pricing
+package_pricing:
+  smd_small:  # 0201, 0402, 0603
+    multiplier: 1.0
+
+  smd_medium:  # 0805, 1206, 1210
+    multiplier: 1.0
+
+  smd_large:  # 1812, 2010, 2512
+    multiplier: 1.2
+
+  soic:  # SOIC, SOP packages
+    multiplier: 1.1
+
+  qfp:  # QFP, TQFP packages
+    multiplier: 1.3
+
+  qfn:  # QFN, DFN packages
+    multiplier: 1.4
+
+  bga:  # BGA, LGA packages
+    multiplier: 2.0
+
+  through_hole:  # THT components
+    multiplier: 1.2
+
+  connector:  # Connectors
+    multiplier: 1.5
+
+  other:  # Other package types
+    multiplier: 1.0
+
+  unknown:
+    multiplier: 1.0
+
+# Assembly cost configuration
+assembly:
+  # One-time setup cost for assembly line
+  setup_cost: 100.0
+
+  # Cost per component placement (varies by package complexity)
+  cost_per_smd_small: 0.01      # Small SMD (0201-0603)
+  cost_per_smd_medium: 0.015    # Medium SMD (0805-1210)
+  cost_per_smd_large: 0.02      # Large SMD (1812+)
+  cost_per_soic: 0.025          # SOIC packages
+  cost_per_qfp: 0.05            # QFP packages
+  cost_per_qfn: 0.06            # QFN packages
+  cost_per_bga: 0.15            # BGA packages (higher due to complexity)
+  cost_per_through_hole: 0.05   # Through-hole components
+  cost_per_connector: 0.08      # Connectors
+  cost_per_other: 0.03          # Other package types
+
+# Quantity break pricing configuration
+quantity_breaks:
+  # Quantity tiers (board quantities)
+  tiers: [1, 10, 100, 1000, 10000]
+
+  # Discount multipliers for each tier (1.0 = no discount)
+  # These represent volume pricing discounts
+  discount_curve: [1.0, 0.85, 0.70, 0.55, 0.45]
+
+# Overhead and markup configuration
+overhead:
+  # Non-recurring engineering cost (one-time)
+  nre_cost: 500.0
+
+  # Procurement overhead as percentage of component cost
+  procurement_overhead_percentage: 5.0
+
+  # Supply chain risk multipliers
+  supply_chain_risk_low: 1.0     # Readily available parts
+  supply_chain_risk_medium: 1.2  # Some availability concerns
+  supply_chain_risk_high: 1.5    # Hard to source, obsolete, or single-source
