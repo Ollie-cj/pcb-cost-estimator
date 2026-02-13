@@ -1,0 +1,13 @@
+Reference Designator,Quantity,Manufacturer,Part Number,Description,Package,Value,Notes
+R1,1,Vishay,CRCW08051K00FKEA,Resistor 1k 1% 1/8W,0805,1k,
+R2-R5,4,Vishay,CRCW080510K0FKEA,Resistor 10k 1% 1/8W,0805,10k,
+C1,1,Murata,GRM188R71C104KA01D,Capacitor 100nF 16V X7R,0603,100nF,
+C2,1,Murata,GRM31CR61A226KE19L,Capacitor 22uF 10V X7R,1206,22uF,
+C3,2,Samsung,CL10A105KA8NNNC,Capacitor 1uF 25V X5R,0603,1uF,DNP
+U1,1,Texas Instruments,TPS54331DR,Buck Converter 3A,SOIC-8,3.3V,
+U2,1,Microchip,ATMEGA328P-AU,Microcontroller 8-bit,TQFP-32,,
+D1,1,ON Semiconductor,1N4148W-7-F,Diode Switching 100V,SOD-123,100V,
+LED1,1,Kingbright,APT1608CGCK,LED Green 568nm,0603,,
+Q1,1,Infineon,BSS138,N-Channel MOSFET 50V,SOT-23,50V,
+Y1,1,Abracon,ABM3-16.000MHZ-D2Y-T,Crystal 16MHz,SMD-3.2x2.5,,
+J1,1,Molex,22-23-2021,Connector Header 2-pos,TH 0.1in,,

@@ -1,0 +1,8 @@
+Part Reference,Qnty,Vendor,Manufacturer P/N,Component Description,Mounting,Rating,Category,Installation
+R20,1,Vishay,CRCW0805100KFKEA,Thick Film Resistor,0805,100k,RESISTOR,Fitted
+R21,1,Vishay,CRCW08054K70FKEA,Thick Film Resistor,0805,4.7k,RESISTOR,DO NOT PLACE
+C20,2,Murata,GRM21BR71H104KA01L,MLCC Ceramic Capacitor,0805,100nF,CAPACITOR,Fitted
+C21,1,Murata,GRM21BR61C226ME44L,MLCC Ceramic Capacitor,0805,22uF,CAPACITOR,DNI
+U20,1,STMicroelectronics,STM32F103C8T6,ARM Cortex-M3 MCU,LQFP-48,,IC,Fitted
+U21,1,FTDI,FT232RL,USB to Serial,SSOP-28,,IC,Not Fitted
+J20,1,JAE Electronics,DX07S024JJ1R1500,Micro USB Connector,SMD,,CONNECTOR,Fitted

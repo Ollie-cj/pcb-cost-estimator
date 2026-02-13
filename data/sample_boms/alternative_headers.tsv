@@ -1,0 +1,14 @@
+BOM for PCB Rev 2.0 - Manufacturing
+
+
+Ref Des	Qty	MFR	MPN	Desc	Footprint	Val	Type
+R10	2	Yageo	RC0805FR-0722KL	RES 22K OHM	0805	22k	Resistor
+R11,R12	2	Panasonic	ERJ-6ENF1002V	RES 10K OHM	0805	10k	Resistor
+C10	1	TDK	C2012X7R1C105K125AB	CAP 1uF 16V	0805	1uF	Capacitor
+C11	1	Kemet	C0805C104K5RACTU	CAP 100nF 50V	0805	100nF	Capacitor
+U10	1	Analog Devices	LT1963EQ#PBF	LDO Regulator	DDPAK-5	3.3V	IC
+L1	1	Murata	LQH3NPN100MMEL	Inductor 10uH	1210	10uH	Inductor
+J10	1	TE Connectivity	1-1734742-0	USB Type-C Receptacle	SMD		Connector
+SW1	1	C&K	PTS645SM43SMTR92 LFS	Tactile Switch	SMD		Switch
+F1	1	Littelfuse	0154.500DR	Fuse 500mA	Radial		Fuse
+T1	1	Wurth	750315371	Transformer	SMD		Transformer

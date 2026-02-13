@@ -1,17 +1,19 @@
-# Task: Scaffold PCB cost estimation project structure
+# Task: Implement BoM parser and data normalization layer
 
 ## Instructions
-Set up the Python project structure with pyproject.toml/setup.cfg, directory layout (src/pcb_cost_estimator/, tests/, data/), CLI entry point using Click or argparse, configuration management (YAML/JSON config for API keys, model parameters, markup percentages), and basic logging infrastructure. Include a requirements.txt with initial dependencies (pandas, pydantic, openai/anthropic SDK, click, pyyaml).
+Build a robust BoM ingestion module that accepts multiple input formats: CSV, Excel (.xlsx), and TSV. The parser should handle common BoM column variations (e.g., 'Part Number' vs 'MPN' vs 'Manufacturer Part Number', 'Qty' vs 'Quantity', 'Ref Des' vs 'Reference Designator'). Use Pydantic models to define a canonical BomItem schema with fields: reference_designator, quantity, manufacturer, manufacturer_part_number, description, package/footprint, value, category (resistor, capacitor, IC, connector, etc.). Implement fuzzy column matching and provide clear error messages for unparseable rows. Handle edge cases like merged cells, header rows not on line 1, and DNP (Do Not Place) markers.
 
 ## Acceptance Criteria
 
-* Project directory structure created with src/, tests/, data/, config/ directories
-* CLI entry point runs with --help without error
-* Configuration loader reads from YAML/JSON config file
-* Logging is configured and outputs to console/file
-* Virtual environment setup instructions in README
+* Parses CSV, XLSX, and TSV BoM files correctly
+* Handles at least 5 common column naming variations automatically
+* Outputs a list of validated Pydantic BomItem objects
+* Gracefully handles malformed rows with warnings (not crashes)
+* DNP/DNI items are flagged but retained in output
+* Includes sample BoM files in data/ for testing
 
-**Complexity:** low
+**Complexity:** medium
+**Dependencies:** Scaffold PCB cost estimation project structure
 
 ## Acceptance Criteria
 - 
