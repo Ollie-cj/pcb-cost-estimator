@@ -78,6 +78,8 @@ pcb-cost --help
 
 Copy `config/default.yaml` and adjust model parameters, API keys, markup percentages, and volume discount curves. See [CONFIGURATION.md](CONFIGURATION.md) for details.
 
+For LLM enrichment setup and usage, see [LLM_ENRICHMENT.md](docs/LLM_ENRICHMENT.md).
+
 ## Project Structure
 
 ```
