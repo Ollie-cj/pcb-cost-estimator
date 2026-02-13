@@ -14,6 +14,7 @@ from pcb_cost_estimator.logger import setup_logging
 from pcb_cost_estimator.bom_parser import BomParser
 from pcb_cost_estimator.cost_estimator import CostEstimator
 from pcb_cost_estimator.llm_enrichment import create_enrichment_service
+from pcb_cost_estimator.reporting import generate_report
 
 
 @click.group()
@@ -67,7 +68,14 @@ def main(ctx: click.Context, config: Path, verbose: bool) -> None:
     "--output",
     "-o",
     type=click.Path(path_type=Path),
-    help="Output file for cost estimate (JSON format)",
+    help="Output file for cost estimate (format auto-detected from extension or use --format)",
+)
+@click.option(
+    "--format",
+    "-f",
+    type=click.Choice(["table", "json", "csv", "markdown"]),
+    default="table",
+    help="Output format (default: table for CLI display)",
 )
 @click.option(
     "--board-quantity",
@@ -96,6 +104,7 @@ def estimate(
     ctx: click.Context,
     bom_file: Path,
     output: Optional[Path],
+    format: str,
     board_quantity: int,
     enable_llm: bool,
     llm_provider: Optional[str],
@@ -172,47 +181,37 @@ def estimate(
         click.echo("Estimating costs...")
         cost_estimate = estimator.estimate_bom_cost(bom_result, board_quantity)
 
-        # Display results
-        click.echo("\n" + "=" * 60)
-        click.echo("COST ESTIMATE SUMMARY")
-        click.echo("=" * 60)
-        click.echo(f"Total Components: {len(cost_estimate.component_costs)}")
-        click.echo(f"Board Quantity: {board_quantity}")
-        click.echo()
-        click.echo(f"Component Costs (per board):")
-        click.echo(f"  Low:     ${cost_estimate.total_component_cost_low:.2f}")
-        click.echo(f"  Typical: ${cost_estimate.total_component_cost_typical:.2f}")
-        click.echo(f"  High:    ${cost_estimate.total_component_cost_high:.2f}")
-        click.echo()
-        click.echo(f"Assembly Cost: ${cost_estimate.assembly_cost.total_assembly_cost_per_board:.2f}")
-        click.echo(f"Overhead Cost: ${cost_estimate.overhead_costs.total_overhead:.2f}")
-        click.echo()
-        click.echo(f"TOTAL COST PER BOARD:")
-        click.echo(f"  Low:     ${cost_estimate.total_cost_per_board_low:.2f}")
-        click.echo(f"  Typical: ${cost_estimate.total_cost_per_board_typical:.2f}")
-        click.echo(f"  High:    ${cost_estimate.total_cost_per_board_high:.2f}")
-        click.echo("=" * 60)
-
-        # Display warnings
-        if cost_estimate.warnings:
-            click.echo(f"\nWarnings ({len(cost_estimate.warnings)}):")
-            for warning in cost_estimate.warnings:
-                click.echo(f"  ⚠ {warning}")
-
-        # Display notes
-        if cost_estimate.notes:
-            click.echo(f"\nNotes ({len(cost_estimate.notes)}):")
-            for note in cost_estimate.notes:
-                click.echo(f"  ℹ {note}")
-
-        # Save to output file if specified
+        # Auto-detect format from output file extension if output specified
+        report_format = format
         if output:
-            import json
-            output.parent.mkdir(parents=True, exist_ok=True)
-            with open(output, 'w') as f:
-                json.dump(cost_estimate.model_dump(), f, indent=2)
-            click.echo(f"\nCost estimate saved to: {output}")
-            logger.info(f"Output written to {output}")
+            ext = output.suffix.lower()
+            if ext == '.json':
+                report_format = 'json'
+            elif ext == '.csv':
+                report_format = 'csv'
+            elif ext in ['.md', '.markdown']:
+                report_format = 'markdown'
+            # Otherwise use the specified format
+
+        # Generate report in the specified format
+        if report_format == 'table':
+            # Display rich formatted table
+            generate_report(cost_estimate, format='table')
+
+            # Also save to file if output specified
+            if output:
+                if output.suffix.lower() == '.json':
+                    generate_report(cost_estimate, format='json', output_path=output)
+                    click.echo(f"\nReport also saved to: {output}")
+        else:
+            # Generate file-based report
+            if not output:
+                # If no output specified, use default filename
+                output = Path(f"cost_estimate.{report_format}")
+
+            generate_report(cost_estimate, format=report_format, output_path=output)
+            click.echo(f"\n{report_format.upper()} report saved to: {output}")
+            logger.info(f"Report written to {output}")
 
     except Exception as e:
         logger.exception(f"Error during cost estimation: {e}")
