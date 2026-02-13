@@ -21,6 +21,14 @@ from .config import CostModelConfig, CategoryPricing, PackagePricing
 
 logger = logging.getLogger(__name__)
 
+# Optional LLM enrichment import
+try:
+    from .llm_enrichment import LLMEnrichmentService
+    LLM_ENRICHMENT_AVAILABLE = True
+except ImportError:
+    LLM_ENRICHMENT_AVAILABLE = False
+    logger.debug("LLM enrichment not available")
+
 
 class ComponentClassifier:
     """Classifies components based on MPN patterns and descriptions."""
@@ -126,37 +134,63 @@ class ComponentClassifier:
         ComponentCategory.TRANSFORMER: ["transformer", "xfmr"],
     }
 
-    def classify_component(self, item: BomItem) -> ComponentCategory:
+    def classify_component(
+        self,
+        item: BomItem,
+        llm_enrichment: Optional['LLMEnrichmentService'] = None
+    ) -> Tuple[ComponentCategory, Optional[Dict]]:
         """Classify a component based on MPN patterns and description.
 
         Args:
             item: BomItem to classify
+            llm_enrichment: Optional LLM enrichment service for ambiguous components
 
         Returns:
-            ComponentCategory classification
+            Tuple of (ComponentCategory classification, Optional LLM metadata)
         """
         # If category is already set and not UNKNOWN, return it
         if item.category != ComponentCategory.UNKNOWN:
-            return item.category
+            return item.category, None
 
         # Try MPN pattern matching
         if item.manufacturer_part_number:
             category = self._classify_by_mpn(item.manufacturer_part_number)
             if category != ComponentCategory.UNKNOWN:
                 logger.debug(f"Classified {item.reference_designator} as {category} by MPN")
-                return category
+                return category, None
 
         # Try description keyword matching
         if item.description:
             category = self._classify_by_description(item.description)
             if category != ComponentCategory.UNKNOWN:
                 logger.debug(f"Classified {item.reference_designator} as {category} by description")
-                return category
+                return category, None
 
         # Try reference designator prefix as fallback
         category = self._classify_by_ref_des(item.reference_designator)
+
+        # If still UNKNOWN and LLM enrichment is available, try LLM classification
+        if category == ComponentCategory.UNKNOWN and llm_enrichment:
+            llm_result = llm_enrichment.classify_component(
+                mpn=item.manufacturer_part_number or "",
+                description=item.description or "",
+                reference_designator=item.reference_designator
+            )
+
+            if llm_result and llm_result.confidence > 0.5:
+                logger.info(
+                    f"LLM classified {item.reference_designator} as {llm_result.category} "
+                    f"(confidence: {llm_result.confidence:.2f}, cached: {llm_result.from_cache})"
+                )
+                return llm_result.category, {
+                    "llm_classification": True,
+                    "confidence": llm_result.confidence,
+                    "reasoning": llm_result.reasoning,
+                    "from_cache": llm_result.from_cache
+                }
+
         logger.debug(f"Classified {item.reference_designator} as {category} by reference designator")
-        return category
+        return category, None
 
     def _classify_by_mpn(self, mpn: str) -> ComponentCategory:
         """Classify by manufacturer part number pattern matching.
@@ -329,15 +363,21 @@ class PackageClassifier:
 class CostEstimator:
     """Deterministic cost estimation engine."""
 
-    def __init__(self, config: CostModelConfig):
+    def __init__(
+        self,
+        config: CostModelConfig,
+        llm_enrichment: Optional['LLMEnrichmentService'] = None
+    ):
         """Initialize cost estimator with configuration.
 
         Args:
             config: Cost model configuration
+            llm_enrichment: Optional LLM enrichment service for enhanced analysis
         """
         self.config = config
         self.component_classifier = ComponentClassifier()
         self.package_classifier = PackageClassifier()
+        self.llm_enrichment = llm_enrichment
 
     def estimate_bom_cost(
         self,
@@ -365,8 +405,9 @@ class CostEstimator:
 
         for item in active_items:
             try:
-                cost_estimate = self._estimate_component_cost(item, board_quantity)
+                cost_estimate, item_warnings = self._estimate_component_cost(item, board_quantity)
                 component_costs.append(cost_estimate)
+                warnings.extend(item_warnings)
             except Exception as e:
                 logger.error(f"Error estimating cost for {item.reference_designator}: {e}")
                 warnings.append(f"Could not estimate cost for {item.reference_designator}: {str(e)}")
@@ -402,8 +443,50 @@ class CostEstimator:
             overhead_costs.total_overhead
         )
 
-        # Combine warnings
+        # Check for obsolescence risks (if LLM enrichment enabled)
+        obsolescence_notes = []
+        if self.llm_enrichment:
+            components_to_check = [
+                {
+                    "mpn": item.manufacturer_part_number or "",
+                    "manufacturer": item.manufacturer or "",
+                    "description": item.description or "",
+                    "category": self.component_classifier.classify_component(item, None)[0].value,
+                    "quantity": item.quantity
+                }
+                for item in active_items
+                if item.manufacturer_part_number  # Only check components with MPN
+            ]
+
+            if components_to_check:
+                logger.info(f"Checking obsolescence for {len(components_to_check)} components")
+                obsolescence_results = self.llm_enrichment.batch_check_obsolescence(
+                    components_to_check
+                )
+
+                for result in obsolescence_results:
+                    if result.obsolescence_risk in ["high", "obsolete"]:
+                        warning_msg = (
+                            f"Obsolescence risk for {result.mpn}: {result.obsolescence_risk.upper()} "
+                            f"(lifecycle: {result.lifecycle_status})"
+                        )
+                        warnings.append(warning_msg)
+
+                        if result.alternatives:
+                            alt_summary = ", ".join(
+                                alt["mpn"] for alt in result.alternatives[:3]
+                            )
+                            obsolescence_notes.append(
+                                f"{result.mpn}: Consider alternatives - {alt_summary}"
+                            )
+                    elif result.obsolescence_risk == "medium":
+                        obsolescence_notes.append(
+                            f"{result.mpn}: Medium obsolescence risk - monitor availability"
+                        )
+
+        # Combine warnings and notes
         all_warnings = list(bom_result.warnings) + warnings
+        all_notes = obsolescence_notes
 
         return CostEstimate(
             file_path=bom_result.file_path,
@@ -419,14 +502,14 @@ class CostEstimator:
             total_cost_per_board_typical=total_cost_per_board_typical,
             total_cost_per_board_high=total_cost_per_board_high,
             warnings=all_warnings,
-            notes=[],
+            notes=all_notes,
         )
 
     def _estimate_component_cost(
         self,
         item: BomItem,
         board_quantity: int,
-    ) -> ComponentCostEstimate:
+    ) -> Tuple[ComponentCostEstimate, List[str]]:
         """Estimate cost for a single component.
 
         Args:
@@ -434,10 +517,14 @@ class CostEstimator:
             board_quantity: Number of boards
 
         Returns:
-            ComponentCostEstimate with price breaks
+            Tuple of (ComponentCostEstimate with price breaks, list of warnings)
         """
-        # Classify component
-        category = self.component_classifier.classify_component(item)
+        warnings = []
+
+        # Classify component (with optional LLM enrichment)
+        category, llm_metadata = self.component_classifier.classify_component(
+            item, self.llm_enrichment
+        )
         package_type = self.package_classifier.classify_package(item)
 
         # Get base pricing for category
@@ -463,7 +550,41 @@ class CostEstimator:
             board_quantity,
         )
 
-        return ComponentCostEstimate(
+        # Build notes list
+        notes = list(item.notes) if item.notes else []
+        if llm_metadata:
+            notes.append(
+                f"LLM classification (confidence: {llm_metadata['confidence']:.2f})"
+            )
+
+        # LLM price reasonableness check (if enabled)
+        if self.llm_enrichment and item.manufacturer_part_number:
+            price_check = self.llm_enrichment.check_price_reasonableness(
+                mpn=item.manufacturer_part_number,
+                description=item.description or "",
+                category=category.value,
+                package_type=package_type.value,
+                unit_cost_low=unit_cost_low,
+                unit_cost_typical=unit_cost_typical,
+                unit_cost_high=unit_cost_high,
+                quantity=item.quantity
+            )
+
+            if price_check and not price_check.is_reasonable:
+                warning_msg = (
+                    f"{item.reference_designator} ({item.manufacturer_part_number}): "
+                    f"Price may be unreasonable - {price_check.reasoning}"
+                )
+                warnings.append(warning_msg)
+                notes.append(f"Price check: {price_check.reasoning[:100]}")
+
+                if price_check.expected_price_range:
+                    notes.append(
+                        f"Expected range: ${price_check.expected_price_range['low']:.4f} - "
+                        f"${price_check.expected_price_range['high']:.4f}"
+                    )
+
+        estimate = ComponentCostEstimate(
             reference_designator=item.reference_designator,
             quantity=item.quantity,
             category=category,
@@ -478,8 +599,10 @@ class CostEstimator:
             manufacturer=item.manufacturer,
             manufacturer_part_number=item.manufacturer_part_number,
             description=item.description,
-            notes=item.notes,
+            notes=notes,
         )
+
+        return estimate, warnings
 
     def _get_category_pricing(self, category: ComponentCategory) -> CategoryPricing:
         """Get base pricing for a component category.
