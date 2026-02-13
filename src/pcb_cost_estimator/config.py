@@ -2,10 +2,10 @@
 
 import logging
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import yaml
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, validator, field_validator
 
 
 logger = logging.getLogger(__name__)
@@ -95,12 +95,182 @@ class LoggingConfig(BaseModel):
         return v.upper()
 
 
+class CategoryPricing(BaseModel):
+    """Pricing configuration for a component category."""
+
+    base_price_low: float = Field(..., description="Low estimate of base price", ge=0.0)
+    base_price_typical: float = Field(..., description="Typical base price", ge=0.0)
+    base_price_high: float = Field(..., description="High estimate of base price", ge=0.0)
+
+
+class PackagePricing(BaseModel):
+    """Pricing adjustments for package types."""
+
+    multiplier: float = Field(
+        default=1.0,
+        description="Price multiplier for this package type",
+        ge=0.1,
+        le=10.0
+    )
+
+
+class AssemblyPricing(BaseModel):
+    """Assembly cost configuration."""
+
+    setup_cost: float = Field(
+        default=100.0,
+        description="One-time assembly setup cost",
+        ge=0.0
+    )
+    cost_per_smd_small: float = Field(
+        default=0.01,
+        description="Cost per small SMD component placement",
+        ge=0.0
+    )
+    cost_per_smd_medium: float = Field(
+        default=0.015,
+        description="Cost per medium SMD component placement",
+        ge=0.0
+    )
+    cost_per_smd_large: float = Field(
+        default=0.02,
+        description="Cost per large SMD component placement",
+        ge=0.0
+    )
+    cost_per_soic: float = Field(
+        default=0.025,
+        description="Cost per SOIC package placement",
+        ge=0.0
+    )
+    cost_per_qfp: float = Field(
+        default=0.05,
+        description="Cost per QFP package placement",
+        ge=0.0
+    )
+    cost_per_qfn: float = Field(
+        default=0.06,
+        description="Cost per QFN package placement",
+        ge=0.0
+    )
+    cost_per_bga: float = Field(
+        default=0.15,
+        description="Cost per BGA package placement",
+        ge=0.0
+    )
+    cost_per_through_hole: float = Field(
+        default=0.05,
+        description="Cost per through-hole component placement",
+        ge=0.0
+    )
+    cost_per_connector: float = Field(
+        default=0.08,
+        description="Cost per connector placement",
+        ge=0.0
+    )
+    cost_per_other: float = Field(
+        default=0.03,
+        description="Cost per other package type placement",
+        ge=0.0
+    )
+
+
+class QuantityBreakConfig(BaseModel):
+    """Quantity break pricing configuration."""
+
+    tiers: list[int] = Field(
+        default=[1, 10, 100, 1000, 10000],
+        description="Quantity tiers for price breaks"
+    )
+    discount_curve: list[float] = Field(
+        default=[1.0, 0.85, 0.70, 0.55, 0.45],
+        description="Discount multipliers for each tier (1.0 = no discount)"
+    )
+
+    @field_validator("discount_curve")
+    @classmethod
+    def validate_discount_curve(cls, v: list[float]) -> list[float]:
+        """Validate discount curve is monotonically decreasing."""
+        for i in range(len(v) - 1):
+            if v[i] < v[i + 1]:
+                raise ValueError("Discount curve must be monotonically decreasing")
+        return v
+
+
+class OverheadConfig(BaseModel):
+    """Overhead and markup configuration."""
+
+    nre_cost: float = Field(
+        default=500.0,
+        description="Non-recurring engineering cost",
+        ge=0.0
+    )
+    procurement_overhead_percentage: float = Field(
+        default=5.0,
+        description="Procurement overhead as percentage of component cost",
+        ge=0.0,
+        le=50.0
+    )
+    supply_chain_risk_low: float = Field(
+        default=1.0,
+        description="Supply chain risk multiplier for low risk",
+        ge=1.0,
+        le=3.0
+    )
+    supply_chain_risk_medium: float = Field(
+        default=1.2,
+        description="Supply chain risk multiplier for medium risk",
+        ge=1.0,
+        le=3.0
+    )
+    supply_chain_risk_high: float = Field(
+        default=1.5,
+        description="Supply chain risk multiplier for high risk",
+        ge=1.0,
+        le=3.0
+    )
+
+
+class CostModelConfig(BaseModel):
+    """Cost model configuration."""
+
+    # Category-based pricing
+    category_pricing: Dict[str, CategoryPricing] = Field(
+        default_factory=dict,
+        description="Base pricing for each component category"
+    )
+
+    # Package-based pricing multipliers
+    package_pricing: Dict[str, PackagePricing] = Field(
+        default_factory=dict,
+        description="Pricing multipliers for package types"
+    )
+
+    # Assembly costs
+    assembly: AssemblyPricing = Field(
+        default_factory=AssemblyPricing,
+        description="Assembly cost configuration"
+    )
+
+    # Quantity break pricing
+    quantity_breaks: QuantityBreakConfig = Field(
+        default_factory=QuantityBreakConfig,
+        description="Quantity break pricing configuration"
+    )
+
+    # Overhead and markup
+    overhead: OverheadConfig = Field(
+        default_factory=OverheadConfig,
+        description="Overhead and markup configuration"
+    )
+
+
 class Config(BaseModel):
     """Main configuration model."""
 
     api: APIConfig = Field(default_factory=APIConfig)
     pricing: PricingConfig = Field(default_factory=PricingConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
+    cost_model: CostModelConfig = Field(default_factory=CostModelConfig)
 
 
 def load_config(config_path: Path) -> Dict[str, Any]:

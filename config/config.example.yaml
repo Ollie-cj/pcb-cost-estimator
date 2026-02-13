@@ -44,3 +44,127 @@ logging:
 
   # Enable console output
   console_output: true
+
+# Cost Model Configuration
+# For detailed cost model configuration, see cost_model.yaml
+# The cost model includes:
+# - Category-based pricing (resistors, capacitors, ICs, etc.)
+# - Package-based pricing multipliers (SMD, BGA, QFP, etc.)
+# - Assembly costs by package complexity
+# - Quantity break pricing tiers
+# - Overhead and markup calculations
+cost_model:
+  # Category pricing (low/typical/high estimates)
+  category_pricing:
+    resistor:
+      base_price_low: 0.001
+      base_price_typical: 0.005
+      base_price_high: 0.02
+    capacitor:
+      base_price_low: 0.002
+      base_price_typical: 0.01
+      base_price_high: 0.05
+    inductor:
+      base_price_low: 0.01
+      base_price_typical: 0.05
+      base_price_high: 0.20
+    ic:
+      base_price_low: 0.50
+      base_price_typical: 2.00
+      base_price_high: 10.00
+    connector:
+      base_price_low: 0.10
+      base_price_typical: 0.50
+      base_price_high: 2.00
+    diode:
+      base_price_low: 0.01
+      base_price_typical: 0.05
+      base_price_high: 0.20
+    transistor:
+      base_price_low: 0.02
+      base_price_typical: 0.10
+      base_price_high: 0.50
+    led:
+      base_price_low: 0.02
+      base_price_typical: 0.10
+      base_price_high: 0.50
+    crystal:
+      base_price_low: 0.10
+      base_price_typical: 0.30
+      base_price_high: 1.00
+    switch:
+      base_price_low: 0.05
+      base_price_typical: 0.20
+      base_price_high: 1.00
+    relay:
+      base_price_low: 0.50
+      base_price_typical: 1.50
+      base_price_high: 5.00
+    fuse:
+      base_price_low: 0.05
+      base_price_typical: 0.20
+      base_price_high: 1.00
+    transformer:
+      base_price_low: 0.50
+      base_price_typical: 2.00
+      base_price_high: 10.00
+    other:
+      base_price_low: 0.05
+      base_price_typical: 0.50
+      base_price_high: 2.00
+    unknown:
+      base_price_low: 0.10
+      base_price_typical: 1.00
+      base_price_high: 5.00
+
+  # Package pricing multipliers
+  package_pricing:
+    smd_small:
+      multiplier: 1.0
+    smd_medium:
+      multiplier: 1.0
+    smd_large:
+      multiplier: 1.2
+    soic:
+      multiplier: 1.1
+    qfp:
+      multiplier: 1.3
+    qfn:
+      multiplier: 1.4
+    bga:
+      multiplier: 2.0
+    through_hole:
+      multiplier: 1.2
+    connector:
+      multiplier: 1.5
+    other:
+      multiplier: 1.0
+    unknown:
+      multiplier: 1.0
+
+  # Assembly costs
+  assembly:
+    setup_cost: 100.0
+    cost_per_smd_small: 0.01
+    cost_per_smd_medium: 0.015
+    cost_per_smd_large: 0.02
+    cost_per_soic: 0.025
+    cost_per_qfp: 0.05
+    cost_per_qfn: 0.06
+    cost_per_bga: 0.15
+    cost_per_through_hole: 0.05
+    cost_per_connector: 0.08
+    cost_per_other: 0.03
+
+  # Quantity breaks
+  quantity_breaks:
+    tiers: [1, 10, 100, 1000, 10000]
+    discount_curve: [1.0, 0.85, 0.70, 0.55, 0.45]
+
+  # Overhead
+  overhead:
+    nre_cost: 500.0
+    procurement_overhead_percentage: 5.0
+    supply_chain_risk_low: 1.0
+    supply_chain_risk_medium: 1.2
+    supply_chain_risk_high: 1.5
