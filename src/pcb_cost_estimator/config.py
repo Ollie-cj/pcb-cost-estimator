@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class APIConfig(BaseModel):
-    """API configuration settings."""
+    """API configuration settings (legacy - kept for backward compatibility)."""
 
     provider: str = Field(
         default="openai",
@@ -41,6 +41,76 @@ class APIConfig(BaseModel):
     @validator("provider")
     def validate_provider(cls, v: str) -> str:
         """Validate API provider."""
+        if v.lower() not in ["openai", "anthropic"]:
+            raise ValueError("Provider must be 'openai' or 'anthropic'")
+        return v.lower()
+
+
+class LLMEnrichmentConfig(BaseModel):
+    """LLM enrichment configuration for component analysis."""
+
+    enabled: bool = Field(
+        default=False,
+        description="Enable LLM-powered enrichment features"
+    )
+    provider: str = Field(
+        default="openai",
+        description="LLM provider: 'openai' or 'anthropic'"
+    )
+    api_key: Optional[str] = Field(
+        default=None,
+        description="API key for the LLM provider (can also be set via environment variable)"
+    )
+    model: Optional[str] = Field(
+        default=None,
+        description="Model name (uses provider default if not specified)"
+    )
+    temperature: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=2.0,
+        description="Temperature for LLM responses (0.0 for deterministic)"
+    )
+    max_tokens: int = Field(
+        default=1000,
+        ge=100,
+        le=4000,
+        description="Maximum tokens per LLM request"
+    )
+    requests_per_minute: int = Field(
+        default=60,
+        ge=1,
+        le=1000,
+        description="Rate limit for API requests"
+    )
+    max_retries: int = Field(
+        default=3,
+        ge=1,
+        le=10,
+        description="Maximum retry attempts for failed requests"
+    )
+    cache_ttl_days: int = Field(
+        default=30,
+        ge=1,
+        le=365,
+        description="Cache time-to-live in days"
+    )
+    enable_classification: bool = Field(
+        default=True,
+        description="Enable LLM classification for ambiguous components"
+    )
+    enable_price_checking: bool = Field(
+        default=True,
+        description="Enable LLM price reasonableness checking"
+    )
+    enable_obsolescence_detection: bool = Field(
+        default=True,
+        description="Enable LLM obsolescence risk detection"
+    )
+
+    @validator("provider")
+    def validate_provider(cls, v: str) -> str:
+        """Validate LLM provider."""
         if v.lower() not in ["openai", "anthropic"]:
             raise ValueError("Provider must be 'openai' or 'anthropic'")
         return v.lower()
@@ -271,6 +341,10 @@ class Config(BaseModel):
     pricing: PricingConfig = Field(default_factory=PricingConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     cost_model: CostModelConfig = Field(default_factory=CostModelConfig)
+    llm_enrichment: LLMEnrichmentConfig = Field(
+        default_factory=LLMEnrichmentConfig,
+        description="LLM enrichment configuration"
+    )
 
 
 def load_config(config_path: Path) -> Dict[str, Any]:

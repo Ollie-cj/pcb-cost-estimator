@@ -1,0 +1,43 @@
+# LLM Enrichment Configuration
+# Enables AI-powered component classification, price checking, and obsolescence detection
+
+llm_enrichment:
+  # Enable/disable LLM enrichment features
+  enabled: false  # Set to true and provide API key to enable
+
+  # LLM Provider Configuration
+  provider: "openai"  # Options: "openai" or "anthropic"
+  api_key: null  # Set API key here or use environment variable (OPENAI_API_KEY or ANTHROPIC_API_KEY)
+  model: null  # Uses provider default if not specified (gpt-4o-mini for OpenAI, claude-3-5-sonnet for Anthropic)
+
+  # Model Parameters
+  temperature: 0.0  # Use 0.0 for deterministic responses
+  max_tokens: 1000  # Maximum tokens per request
+  requests_per_minute: 60  # Rate limiting
+  max_retries: 3  # Retry attempts for failed requests
+
+  # Cache Configuration
+  cache_ttl_days: 30  # Cache responses for 30 days
+
+  # Feature Flags
+  enable_classification: true  # Classify ambiguous components using LLM
+  enable_price_checking: true  # Check price reasonableness using LLM
+  enable_obsolescence_detection: true  # Detect obsolescence risks using LLM
+
+# Example configuration with API key (DO NOT commit API keys to version control!)
+# llm_enrichment:
+#   enabled: true
+#   provider: "openai"
+#   api_key: "sk-..."  # Replace with your actual API key
+#   model: "gpt-4o-mini"
+#   temperature: 0.0
+#   max_tokens: 1000
+#   requests_per_minute: 60
+#   enable_classification: true
+#   enable_price_checking: true
+#   enable_obsolescence_detection: true
+
+# Alternative: Use environment variables for API keys
+# export OPENAI_API_KEY="sk-..."
+# or
+# export ANTHROPIC_API_KEY="sk-ant-..."
