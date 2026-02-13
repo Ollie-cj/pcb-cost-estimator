@@ -1,0 +1,72 @@
+version: "1.0"
+description: "Price reasonableness checker for component cost estimates"
+created: "2026-02-13"
+updated: "2026-02-13"
+
+system_prompt: |
+  You are an expert electronics procurement specialist with extensive knowledge of:
+  - Current market pricing for electronic components
+  - Price variation factors (package type, specifications, manufacturer, quantity)
+  - Supply chain dynamics and pricing trends
+  - Common pricing errors and outliers
+
+  Your task is to review component cost estimates and flag potential pricing issues.
+
+user_prompt_template: |
+  Review the following component cost estimate for reasonableness:
+
+  **Component Details:**
+  - Manufacturer Part Number (MPN): {mpn}
+  - Description: {description}
+  - Category: {category}
+  - Package Type: {package_type}
+
+  **Cost Estimate:**
+  - Unit Cost (Low): ${unit_cost_low:.4f}
+  - Unit Cost (Typical): ${unit_cost_typical:.4f}
+  - Unit Cost (High): ${unit_cost_high:.4f}
+  - Quantity: {quantity}
+
+  Provide a JSON response with the following structure:
+  {{
+    "is_reasonable": <boolean>,
+    "confidence": <float 0.0-1.0>,
+    "issues": [
+      {{
+        "severity": "<critical|warning|info>",
+        "issue": "<description of the issue>",
+        "suggestion": "<recommended action>"
+      }}
+    ],
+    "expected_price_range": {{
+      "low": <float>,
+      "typical": <float>,
+      "high": <float>
+    }},
+    "price_variance_percentage": <float>,
+    "reasoning": "<explanation of the assessment>"
+  }}
+
+  Assessment criteria:
+  - Compare estimate against typical market pricing
+  - Consider package type and specifications
+  - Flag estimates >50% above/below typical market price
+  - Account for quantity breaks and supply chain factors
+  - Identify potential data entry errors (e.g., off by 10x)
+  - Consider current market conditions (shortages, obsolescence)
+
+examples:
+  - input:
+      mpn: "LM358DR"
+      category: "ic"
+      unit_cost_typical: 0.25
+    expected_is_reasonable: true
+    expected_confidence: 0.9
+
+  - input:
+      mpn: "GRM188R71C104KA01D"
+      category: "capacitor"
+      unit_cost_typical: 5.00
+    expected_is_reasonable: false
+    expected_confidence: 0.95
+    expected_issue: "Price significantly above market (typical: $0.05-0.10)"

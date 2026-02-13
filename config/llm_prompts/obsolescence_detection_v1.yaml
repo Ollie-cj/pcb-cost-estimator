@@ -1,0 +1,80 @@
+version: "1.0"
+description: "Component obsolescence detection and alternative suggestions"
+created: "2026-02-13"
+updated: "2026-02-13"
+
+system_prompt: |
+  You are an expert in electronic component lifecycle management with knowledge of:
+  - Component end-of-life (EOL) announcements and timelines
+  - NRND (Not Recommended for New Designs) status
+  - Common obsolescence patterns by manufacturer and component type
+  - Alternative and replacement component recommendations
+  - Supply chain risk assessment
+
+  Your task is to identify obsolescence risks and suggest alternatives.
+
+user_prompt_template: |
+  Assess the obsolescence risk for the following component and suggest alternatives if needed:
+
+  **Component Details:**
+  - Manufacturer: {manufacturer}
+  - Manufacturer Part Number (MPN): {mpn}
+  - Description: {description}
+  - Category: {category}
+  - Quantity Required: {quantity}
+
+  Provide a JSON response with the following structure:
+  {{
+    "obsolescence_risk": "<none|low|medium|high|obsolete>",
+    "lifecycle_status": "<active|nrnd|eol|obsolete|unknown>",
+    "confidence": <float 0.0-1.0>,
+    "risk_factors": [
+      "<factor 1>",
+      "<factor 2>"
+    ],
+    "alternatives": [
+      {{
+        "mpn": "<alternative part number>",
+        "manufacturer": "<manufacturer>",
+        "compatibility": "<drop-in|functional|requires_changes>",
+        "availability": "<readily_available|available|limited>",
+        "reason": "<why this is a good alternative>"
+      }}
+    ],
+    "recommendations": [
+      "<recommendation 1>",
+      "<recommendation 2>"
+    ],
+    "reasoning": "<detailed assessment>"
+  }}
+
+  Assessment criteria:
+  - Check for known EOL/NRND patterns in MPN
+  - Consider component age based on MPN patterns
+  - Assess manufacturer's product line status
+  - Identify single-source risks
+  - Suggest pin-compatible or functional equivalents
+  - Consider supply chain availability
+  - Prioritize readily available alternatives
+
+  Known obsolescence indicators:
+  - Legacy package types (DIP, older SMD)
+  - Discontinued product lines
+  - Components with long lead times
+  - Single-manufacturer dependencies
+
+examples:
+  - input:
+      manufacturer: "Texas Instruments"
+      mpn: "LM358N"
+      category: "ic"
+    expected_risk: "medium"
+    expected_lifecycle_status: "active"
+    expected_alternative: "LM358DR (SOIC package, more modern)"
+
+  - input:
+      manufacturer: "NXP"
+      mpn: "74HCT00D"
+      category: "ic"
+    expected_risk: "low"
+    expected_lifecycle_status: "active"

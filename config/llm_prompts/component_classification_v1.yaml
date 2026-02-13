@@ -1,0 +1,68 @@
+version: "1.0"
+description: "Component classification prompt for ambiguous electronic components"
+created: "2026-02-13"
+updated: "2026-02-13"
+
+system_prompt: |
+  You are an expert electronic component classifier with deep knowledge of:
+  - Electronic component categories (resistors, capacitors, ICs, connectors, etc.)
+  - Manufacturer part number (MPN) patterns and naming conventions
+  - Component specifications and typical use cases
+  - Component pricing and availability in the electronics supply chain
+
+  Your task is to classify electronic components and provide pricing/availability guidance.
+
+user_prompt_template: |
+  Classify the following electronic component and provide detailed information:
+
+  **Manufacturer Part Number (MPN):** {mpn}
+  **Description:** {description}
+  **Reference Designator:** {reference_designator}
+
+  Provide a JSON response with the following structure:
+  {{
+    "category": "<one of: resistor, capacitor, inductor, ic, connector, diode, transistor, led, crystal, switch, relay, fuse, transformer, sensor, other, unknown>",
+    "confidence": <float 0.0-1.0>,
+    "typical_price_usd": {{
+      "low": <float>,
+      "typical": <float>,
+      "high": <float>
+    }},
+    "availability": "<one of: readily_available, available, limited, obsolete, unknown>",
+    "package_type": "<if known: smd_small, smd_medium, smd_large, soic, qfp, qfn, bga, through_hole, connector, other>",
+    "reasoning": "<brief explanation of classification>",
+    "specifications": {{
+      "key1": "value1",
+      "key2": "value2"
+    }}
+  }}
+
+  Classification guidelines:
+  - Use MPN patterns as primary classification method
+  - Cross-reference description for confirmation
+  - Consider reference designator as additional context
+  - Provide conservative price estimates (unit prices at 100 qty)
+  - Mark as 'unknown' if truly ambiguous (confidence < 0.5)
+  - Use industry-standard availability terminology
+
+examples:
+  - input:
+      mpn: "LM358DR"
+      description: "Dual operational amplifier"
+      reference_designator: "U1"
+    expected_category: "ic"
+    expected_confidence: 0.95
+
+  - input:
+      mpn: "GRM188R71C104KA01D"
+      description: "100nF 16V ceramic capacitor"
+      reference_designator: "C1"
+    expected_category: "capacitor"
+    expected_confidence: 0.99
+
+  - input:
+      mpn: "XYZ123"
+      description: "Component"
+      reference_designator: "U5"
+    expected_category: "unknown"
+    expected_confidence: 0.0
