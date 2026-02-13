@@ -1,6 +1,7 @@
 """Command-line interface for PCB Cost Estimator."""
 
 import logging
+import os
 import sys
 from pathlib import Path
 from typing import Optional
@@ -10,6 +11,9 @@ import click
 from pcb_cost_estimator import __version__
 from pcb_cost_estimator.config import load_config
 from pcb_cost_estimator.logger import setup_logging
+from pcb_cost_estimator.bom_parser import BomParser
+from pcb_cost_estimator.cost_estimator import CostEstimator
+from pcb_cost_estimator.llm_enrichment import create_enrichment_service
 
 
 @click.group()
@@ -63,25 +67,157 @@ def main(ctx: click.Context, config: Path, verbose: bool) -> None:
     "--output",
     "-o",
     type=click.Path(path_type=Path),
-    help="Output file for cost estimate",
+    help="Output file for cost estimate (JSON format)",
+)
+@click.option(
+    "--board-quantity",
+    "-q",
+    type=int,
+    default=1,
+    help="Number of boards to manufacture",
+)
+@click.option(
+    "--enable-llm",
+    is_flag=True,
+    help="Enable LLM enrichment features (requires API key)",
+)
+@click.option(
+    "--llm-provider",
+    type=click.Choice(["openai", "anthropic"]),
+    help="LLM provider (overrides config)",
+)
+@click.option(
+    "--llm-api-key",
+    envvar="LLM_API_KEY",
+    help="LLM API key (can also use OPENAI_API_KEY or ANTHROPIC_API_KEY env vars)",
 )
 @click.pass_context
-def estimate(ctx: click.Context, bom_file: Path, output: Optional[Path]) -> None:
+def estimate(
+    ctx: click.Context,
+    bom_file: Path,
+    output: Optional[Path],
+    board_quantity: int,
+    enable_llm: bool,
+    llm_provider: Optional[str],
+    llm_api_key: Optional[str]
+) -> None:
     """Estimate PCB cost from Bill of Materials (BOM) file.
 
     BOM_FILE: Path to the Bill of Materials file (CSV, Excel, etc.)
     """
     logger = logging.getLogger(__name__)
-    config = ctx.obj.get("config", {})
+    config_dict = ctx.obj.get("config", {})
 
     logger.info(f"Processing BOM file: {bom_file}")
+    logger.info(f"Board quantity: {board_quantity}")
 
-    # Placeholder for actual implementation
-    click.echo(f"Estimating cost for BOM: {bom_file}")
-    click.echo("This feature is not yet implemented.")
+    try:
+        # Parse BOM file
+        parser = BomParser()
+        bom_result = parser.parse_file(bom_file)
 
-    if output:
-        logger.info(f"Output will be written to: {output}")
+        if not bom_result.success:
+            click.echo(f"Error parsing BOM file: {bom_result.errors}", err=True)
+            sys.exit(1)
+
+        click.echo(f"Parsed {len(bom_result.items)} components from BOM")
+
+        # Get cost model configuration
+        from pcb_cost_estimator.config import load_cost_model_config
+        cost_config = load_cost_model_config()
+
+        # Set up LLM enrichment if enabled
+        llm_service = None
+        if enable_llm or config_dict.get("llm_enrichment", {}).get("enabled", False):
+            # Determine API key
+            api_key = llm_api_key
+            if not api_key:
+                llm_config = config_dict.get("llm_enrichment", {})
+                api_key = llm_config.get("api_key")
+
+            # Try environment variables
+            if not api_key:
+                provider = llm_provider or config_dict.get("llm_enrichment", {}).get("provider", "openai")
+                if provider == "openai":
+                    api_key = os.environ.get("OPENAI_API_KEY")
+                elif provider == "anthropic":
+                    api_key = os.environ.get("ANTHROPIC_API_KEY")
+
+            if api_key:
+                llm_config = config_dict.get("llm_enrichment", {})
+                provider = llm_provider or llm_config.get("provider", "openai")
+
+                click.echo(f"Enabling LLM enrichment with {provider} provider")
+                llm_service = create_enrichment_service(
+                    provider_name=provider,
+                    api_key=api_key,
+                    model=llm_config.get("model"),
+                    enabled=True,
+                    temperature=llm_config.get("temperature", 0.0),
+                    max_tokens=llm_config.get("max_tokens", 1000),
+                    requests_per_minute=llm_config.get("requests_per_minute", 60),
+                    max_retries=llm_config.get("max_retries", 3)
+                )
+            else:
+                click.echo(
+                    "Warning: LLM enrichment requested but no API key provided. "
+                    "Set OPENAI_API_KEY or ANTHROPIC_API_KEY environment variable.",
+                    err=True
+                )
+
+        # Create cost estimator
+        estimator = CostEstimator(cost_config, llm_enrichment=llm_service)
+
+        # Estimate costs
+        click.echo("Estimating costs...")
+        cost_estimate = estimator.estimate_bom_cost(bom_result, board_quantity)
+
+        # Display results
+        click.echo("\n" + "=" * 60)
+        click.echo("COST ESTIMATE SUMMARY")
+        click.echo("=" * 60)
+        click.echo(f"Total Components: {len(cost_estimate.component_costs)}")
+        click.echo(f"Board Quantity: {board_quantity}")
+        click.echo()
+        click.echo(f"Component Costs (per board):")
+        click.echo(f"  Low:     ${cost_estimate.total_component_cost_low:.2f}")
+        click.echo(f"  Typical: ${cost_estimate.total_component_cost_typical:.2f}")
+        click.echo(f"  High:    ${cost_estimate.total_component_cost_high:.2f}")
+        click.echo()
+        click.echo(f"Assembly Cost: ${cost_estimate.assembly_cost.total_assembly_cost_per_board:.2f}")
+        click.echo(f"Overhead Cost: ${cost_estimate.overhead_costs.total_overhead:.2f}")
+        click.echo()
+        click.echo(f"TOTAL COST PER BOARD:")
+        click.echo(f"  Low:     ${cost_estimate.total_cost_per_board_low:.2f}")
+        click.echo(f"  Typical: ${cost_estimate.total_cost_per_board_typical:.2f}")
+        click.echo(f"  High:    ${cost_estimate.total_cost_per_board_high:.2f}")
+        click.echo("=" * 60)
+
+        # Display warnings
+        if cost_estimate.warnings:
+            click.echo(f"\nWarnings ({len(cost_estimate.warnings)}):")
+            for warning in cost_estimate.warnings:
+                click.echo(f"  ⚠ {warning}")
+
+        # Display notes
+        if cost_estimate.notes:
+            click.echo(f"\nNotes ({len(cost_estimate.notes)}):")
+            for note in cost_estimate.notes:
+                click.echo(f"  ℹ {note}")
+
+        # Save to output file if specified
+        if output:
+            import json
+            output.parent.mkdir(parents=True, exist_ok=True)
+            with open(output, 'w') as f:
+                json.dump(cost_estimate.model_dump(), f, indent=2)
+            click.echo(f"\nCost estimate saved to: {output}")
+            logger.info(f"Output written to {output}")
+
+    except Exception as e:
+        logger.exception(f"Error during cost estimation: {e}")
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
 
 
 @main.command()
@@ -96,9 +232,28 @@ def validate_config(ctx: click.Context) -> None:
         sys.exit(1)
 
     click.echo("Configuration is valid!")
-    click.echo(f"API Provider: {config.get('api', {}).get('provider', 'not set')}")
-    click.echo(f"Model: {config.get('api', {}).get('model', 'not set')}")
-    click.echo(f"Markup Percentage: {config.get('pricing', {}).get('markup_percentage', 'not set')}%")
+    click.echo()
+    click.echo("API Configuration:")
+    click.echo(f"  Provider: {config.get('api', {}).get('provider', 'not set')}")
+    click.echo(f"  Model: {config.get('api', {}).get('model', 'not set')}")
+    click.echo()
+    click.echo("Pricing Configuration:")
+    click.echo(f"  Markup Percentage: {config.get('pricing', {}).get('markup_percentage', 'not set')}%")
+    click.echo()
+    click.echo("LLM Enrichment:")
+    llm_config = config.get('llm_enrichment', {})
+    enabled = llm_config.get('enabled', False)
+    click.echo(f"  Enabled: {enabled}")
+    if enabled:
+        click.echo(f"  Provider: {llm_config.get('provider', 'not set')}")
+        click.echo(f"  Model: {llm_config.get('model', 'default')}")
+        click.echo(f"  Classification: {llm_config.get('enable_classification', True)}")
+        click.echo(f"  Price Checking: {llm_config.get('enable_price_checking', True)}")
+        click.echo(f"  Obsolescence Detection: {llm_config.get('enable_obsolescence_detection', True)}")
+        has_api_key = bool(llm_config.get('api_key')) or bool(
+            os.environ.get('OPENAI_API_KEY') or os.environ.get('ANTHROPIC_API_KEY')
+        )
+        click.echo(f"  API Key Configured: {has_api_key}")
     logger.info("Configuration validation successful")
 
 
