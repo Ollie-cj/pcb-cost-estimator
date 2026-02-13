@@ -1,0 +1,37 @@
+{
+  "resistor_reasonable": {
+    "is_reasonable": true,
+    "confidence": 0.92,
+    "typical_price_range_low": 0.001,
+    "typical_price_range_high": 0.02,
+    "reasoning": "The estimated price of $0.01 for a standard 0603 resistor is well within the typical market range of $0.001-$0.02 for this component type."
+  },
+  "resistor_too_high": {
+    "is_reasonable": false,
+    "confidence": 0.88,
+    "typical_price_range_low": 0.001,
+    "typical_price_range_high": 0.02,
+    "reasoning": "The estimated price of $1.00 for a standard 0603 resistor is significantly higher than typical market prices. Standard resistors typically cost $0.001-$0.02. This may indicate an error in the cost model."
+  },
+  "capacitor_reasonable": {
+    "is_reasonable": true,
+    "confidence": 0.90,
+    "typical_price_range_low": 0.005,
+    "typical_price_range_high": 0.05,
+    "reasoning": "The estimated price of $0.02 for a ceramic capacitor is within the typical range of $0.005-$0.05 for common values."
+  },
+  "ic_reasonable": {
+    "is_reasonable": true,
+    "confidence": 0.85,
+    "typical_price_range_low": 5.0,
+    "typical_price_range_high": 15.0,
+    "reasoning": "The estimated price of $8.50 for an STM32F407 microcontroller is reasonable. These MCUs typically range from $5-$15 depending on supplier and quantity."
+  },
+  "ic_too_low": {
+    "is_reasonable": false,
+    "confidence": 0.82,
+    "typical_price_range_low": 5.0,
+    "typical_price_range_high": 15.0,
+    "reasoning": "The estimated price of $0.50 for an STM32F407 microcontroller is significantly below market prices. These MCUs typically cost $5-$15. The estimate may be too optimistic."
+  }
+}

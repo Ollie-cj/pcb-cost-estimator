@@ -1,0 +1,32 @@
+{
+  "resistor_classification": {
+    "category": "resistor",
+    "confidence": 0.98,
+    "reasoning": "Reference designator 'R1' and MPN 'RC0603FR-0710KL' clearly indicate a resistor component. The description mentions '1K 1% 1/10W' which are typical resistor specifications."
+  },
+  "capacitor_classification": {
+    "category": "capacitor",
+    "confidence": 0.97,
+    "reasoning": "The reference designator 'C1' and Murata MPN 'GRM188R71C104KA01D' pattern indicate a ceramic capacitor. The GRM prefix is commonly used by Murata for their capacitor products."
+  },
+  "ic_classification": {
+    "category": "ic",
+    "confidence": 0.99,
+    "reasoning": "Reference designator 'U1' and description mentioning 'MCU ARM Cortex-M4' clearly indicate an integrated circuit, specifically a microcontroller unit."
+  },
+  "connector_classification": {
+    "category": "connector",
+    "confidence": 0.95,
+    "reasoning": "Reference designator 'J1' and description 'USB Micro-B Connector' clearly indicate a connector component."
+  },
+  "led_classification": {
+    "category": "led",
+    "confidence": 0.96,
+    "reasoning": "Reference designator contains 'LED' and description mentions wavelength and forward voltage, typical LED specifications."
+  },
+  "unknown_classification": {
+    "category": "unknown",
+    "confidence": 0.45,
+    "reasoning": "Insufficient information to determine component category with confidence. Reference designator 'X1' could indicate multiple component types."
+  }
+}
