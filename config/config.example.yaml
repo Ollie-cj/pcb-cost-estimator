@@ -1,0 +1,46 @@
+# PCB Cost Estimator Configuration Example
+# Copy this file to config.yaml and update with your settings
+
+# API Configuration
+api:
+  # AI provider: 'openai' or 'anthropic'
+  provider: openai
+
+  # API key (set via environment variable recommended: OPENAI_API_KEY or ANTHROPIC_API_KEY)
+  api_key: "your-api-key-here"
+
+  # Model to use for cost estimation
+  # OpenAI: gpt-4, gpt-4-turbo, gpt-3.5-turbo
+  # Anthropic: claude-3-opus-20240229, claude-3-sonnet-20240229
+  model: gpt-4
+
+  # Temperature for AI responses (0.0 - 2.0)
+  temperature: 0.7
+
+  # Maximum tokens for AI responses
+  max_tokens: 2000
+
+# Pricing Configuration
+pricing:
+  # Markup percentage to apply to base costs (0.0 - 100.0)
+  markup_percentage: 20.0
+
+  # Currency for pricing
+  currency: USD
+
+  # Base setup cost for PCB manufacturing
+  base_setup_cost: 50.0
+
+# Logging Configuration
+logging:
+  # Logging level: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  level: INFO
+
+  # Log file path
+  file: logs/pcb_cost_estimator.log
+
+  # Log message format
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+  # Enable console output
+  console_output: true

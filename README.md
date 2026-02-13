@@ -11,6 +11,50 @@ A Python CLI tool that estimates PCB manufacturing and assembly costs from a Bil
 - **Multiple output formats** — CLI table, JSON, CSV, and Markdown reports
 - **Assembly cost estimation** — based on component mix, package complexity (SMD/TH/BGA), and unique part count
 
+## Installation
+
+### Prerequisites
+
+- Python 3.8 or higher
+- pip package manager
+
+### Virtual Environment Setup
+
+It is recommended to use a virtual environment to isolate dependencies:
+
+```bash
+# Create virtual environment
+python -m venv venv
+
+# Activate virtual environment
+# On Linux/macOS:
+source venv/bin/activate
+# On Windows:
+venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Install the package in development mode
+pip install -e .
+```
+
+### Configuration
+
+1. Copy the example configuration file:
+```bash
+cp config/config.example.yaml config/config.yaml
+```
+
+2. Edit `config/config.yaml` and add your API key:
+   - For OpenAI: Set your API key or use environment variable `OPENAI_API_KEY`
+   - For Anthropic: Set your API key or use environment variable `ANTHROPIC_API_KEY`
+
+3. Validate your configuration:
+```bash
+pcb-cost validate-config
+```
+
 ## Quick Start
 
 ```bash
@@ -18,13 +62,16 @@ A Python CLI tool that estimates PCB manufacturing and assembly costs from a Bil
 pip install -e .
 
 # Estimate costs from a BoM file
-pcb-cost-estimator estimate bom.csv
+pcb-cost estimate bom.csv
 
 # With volume tier and JSON output
-pcb-cost-estimator estimate bom.xlsx --quantity 1000 --format json
+pcb-cost estimate bom.xlsx --quantity 1000 --format json
 
 # Without LLM (deterministic only)
-pcb-cost-estimator estimate bom.csv --no-llm
+pcb-cost estimate bom.csv --no-llm
+
+# Get help
+pcb-cost --help
 ```
 
 ## Configuration
