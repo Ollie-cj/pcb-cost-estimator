@@ -2,7 +2,7 @@
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import yaml
 from pydantic import BaseModel, Field, validator, field_validator
@@ -334,6 +334,45 @@ class CostModelConfig(BaseModel):
     )
 
 
+class ProvenanceConfig(BaseModel):
+    """Provenance and supply-chain origin configuration."""
+
+    default_mode: str = Field(
+        default="eu_preferred",
+        description="Default sourcing mode: global | eu_preferred | eu_only",
+    )
+    eu_countries: List[str] = Field(
+        default=[
+            "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR",
+            "DE", "GR", "HU", "IE", "IT", "LV", "LT", "LU", "MT", "NL",
+            "PL", "PT", "RO", "SK", "SI", "ES", "SE",
+        ],
+        description="ISO 3166-1 alpha-2 codes for EU member states",
+    )
+    uk_included_in_eu: bool = Field(
+        default=True,
+        description="Treat UK as EU for sourcing purposes",
+    )
+    price_premium_threshold: float = Field(
+        default=0.30,
+        ge=0.0,
+        le=10.0,
+        description=(
+            "Flag EU parts whose price exceeds the cheapest global option by more than "
+            "this fraction (e.g. 0.30 = 30% premium threshold)"
+        ),
+    )
+
+    @field_validator("default_mode")
+    @classmethod
+    def validate_default_mode(cls, v: str) -> str:
+        """Validate sourcing mode value."""
+        valid = {"global", "eu_preferred", "eu_only"}
+        if v.lower() not in valid:
+            raise ValueError(f"default_mode must be one of {valid}")
+        return v.lower()
+
+
 class Config(BaseModel):
     """Main configuration model."""
 
@@ -344,6 +383,10 @@ class Config(BaseModel):
     llm_enrichment: LLMEnrichmentConfig = Field(
         default_factory=LLMEnrichmentConfig,
         description="LLM enrichment configuration"
+    )
+    provenance: ProvenanceConfig = Field(
+        default_factory=ProvenanceConfig,
+        description="Provenance and supply-chain origin configuration",
     )
 
 

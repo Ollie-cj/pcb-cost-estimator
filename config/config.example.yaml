@@ -168,3 +168,45 @@ cost_model:
     supply_chain_risk_low: 1.0
     supply_chain_risk_medium: 1.2
     supply_chain_risk_high: 1.5
+
+# Provenance / supply-chain origin configuration
+provenance:
+  # Preferred sourcing mode: global | eu_preferred | eu_only
+  default_mode: eu_preferred
+
+  # EU member-state ISO 3166-1 alpha-2 codes
+  eu_countries:
+    - AT
+    - BE
+    - BG
+    - HR
+    - CY
+    - CZ
+    - DK
+    - EE
+    - FI
+    - FR
+    - DE
+    - GR
+    - HU
+    - IE
+    - IT
+    - LV
+    - LT
+    - LU
+    - MT
+    - NL
+    - PL
+    - PT
+    - RO
+    - SK
+    - SI
+    - ES
+    - SE
+
+  # Treat UK as EU for sourcing purposes (post-Brexit opt-in)
+  uk_included_in_eu: true
+
+  # Flag EU parts that cost more than this fraction above cheapest global option
+  # e.g. 0.30 = flag if EU price is >30% more expensive
+  price_premium_threshold: 0.30

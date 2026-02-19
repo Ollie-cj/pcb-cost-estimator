@@ -5,6 +5,89 @@ from enum import Enum
 from pydantic import BaseModel, Field, field_validator
 
 
+class ManufacturerRegion(str, Enum):
+    """Manufacturer headquarters region enumeration."""
+
+    EU = "EU"
+    UK = "UK"
+    US = "US"
+    CN = "CN"
+    JP = "JP"
+    KR = "KR"
+    TW = "TW"
+    OTHER = "OTHER"
+
+
+class DistributorRegion(str, Enum):
+    """Distributor operating region enumeration."""
+
+    EU = "EU"
+    UK = "UK"
+    US = "US"
+    APAC = "APAC"
+    GLOBAL = "GLOBAL"
+
+
+class SourcingMode(str, Enum):
+    """Preferred sourcing mode for provenance scoring."""
+
+    GLOBAL = "GLOBAL"
+    EU_PREFERRED = "EU_PREFERRED"
+    EU_ONLY = "EU_ONLY"
+
+
+class ProvenanceRisk(str, Enum):
+    """Supply chain risk level for EU-only sourcing."""
+
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
+
+
+class DistributorAvailability(BaseModel):
+    """Availability information for a single distributor."""
+
+    distributor_name: str = Field(..., description="Name of the distributor")
+    distributor_region: DistributorRegion = Field(
+        ..., description="Region where this distributor operates"
+    )
+    in_stock: bool = Field(..., description="Whether the part is currently in stock")
+    stock_quantity: Optional[int] = Field(
+        None, description="Available stock quantity", ge=0
+    )
+    unit_price: Optional[float] = Field(
+        None, description="Unit price at this distributor", ge=0.0
+    )
+    currency: str = Field(default="EUR", description="Currency for unit_price")
+    warehouse_location: Optional[str] = Field(
+        None, description="Warehouse country code (e.g. UK, DE, NL)"
+    )
+    lead_time_days: Optional[int] = Field(
+        None, description="Lead time in days when out of stock", ge=0
+    )
+
+
+class ProvenanceScore(BaseModel):
+    """Provenance and supply-chain scoring for a component."""
+
+    sourcing_mode: SourcingMode = Field(
+        ..., description="Preferred sourcing mode applied when scoring"
+    )
+    eu_available: bool = Field(
+        ..., description="Can this part be sourced from an EU distributor?"
+    )
+    eu_manufactured: bool = Field(
+        ..., description="Is the manufacturer headquartered in Europe?"
+    )
+    eu_price_delta_pct: Optional[float] = Field(
+        None,
+        description="Percentage premium for EU sourcing vs cheapest global option",
+    )
+    provenance_risk: ProvenanceRisk = Field(
+        ..., description="Supply chain risk for EU-only sourcing"
+    )
+
+
 class ComponentCategory(str, Enum):
     """Component category enumeration."""
 
@@ -61,6 +144,21 @@ class BomItem(BaseModel):
         None, description="Original line number from source file"
     )
     notes: Optional[str] = Field(None, description="Additional notes or warnings")
+
+    # Provenance metadata (optional – does not affect existing functionality)
+    manufacturer_country: Optional[str] = Field(
+        None,
+        description="ISO 3166-1 alpha-2 country code where the manufacturer is headquartered",
+        min_length=2,
+        max_length=2,
+    )
+    manufacturer_region: Optional[ManufacturerRegion] = Field(
+        None, description="Manufacturer headquarters region derived from country"
+    )
+    available_distributors: List[DistributorAvailability] = Field(
+        default_factory=list,
+        description="Distributors that stock this part and their availability",
+    )
 
     @field_validator("reference_designator")
     @classmethod
