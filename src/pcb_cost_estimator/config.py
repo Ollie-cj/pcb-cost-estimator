@@ -334,6 +334,54 @@ class CostModelConfig(BaseModel):
     )
 
 
+class DistributorConfig(BaseModel):
+    """Configuration for a single distributor API client."""
+
+    enabled: bool = Field(default=False, description="Enable this distributor client")
+    api_key: str = Field(default="", description="API key / app token for the distributor")
+    # Farnell-specific
+    store: str = Field(
+        default="uk.farnell.com",
+        description="Regional store hostname (Farnell only, e.g. 'uk.farnell.com')",
+    )
+    # RS Components-specific
+    locale: str = Field(
+        default="en",
+        description="Locale/region code (RS Components only, e.g. 'en', 'de')",
+    )
+    # TME-specific
+    api_secret: str = Field(default="", description="API secret for HMAC signing (TME only)")
+    country: str = Field(
+        default="PL",
+        description="ISO country code for pricing context (TME only)",
+    )
+    currency: str = Field(
+        default="EUR",
+        description="ISO currency code for pricing (TME only)",
+    )
+
+
+class DistributorsConfig(BaseModel):
+    """Top-level distributors configuration block."""
+
+    octopart: DistributorConfig = Field(
+        default_factory=lambda: DistributorConfig(store="", locale=""),
+        description="Octopart distributor configuration",
+    )
+    farnell: DistributorConfig = Field(
+        default_factory=lambda: DistributorConfig(store="uk.farnell.com", locale=""),
+        description="Farnell / element14 distributor configuration",
+    )
+    rs_components: DistributorConfig = Field(
+        default_factory=lambda: DistributorConfig(store="", locale="en"),
+        description="RS Components distributor configuration",
+    )
+    tme: DistributorConfig = Field(
+        default_factory=lambda: DistributorConfig(store="", locale="", country="PL"),
+        description="TME distributor configuration",
+    )
+
+
 class Config(BaseModel):
     """Main configuration model."""
 
@@ -344,6 +392,10 @@ class Config(BaseModel):
     llm_enrichment: LLMEnrichmentConfig = Field(
         default_factory=LLMEnrichmentConfig,
         description="LLM enrichment configuration"
+    )
+    distributors: DistributorsConfig = Field(
+        default_factory=DistributorsConfig,
+        description="Distributor API client configuration",
     )
 
 

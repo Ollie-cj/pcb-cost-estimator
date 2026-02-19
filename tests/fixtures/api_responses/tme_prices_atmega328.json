@@ -1,0 +1,19 @@
+{
+  "Status": "OK",
+  "Data": {
+    "ProductList": [
+      {
+        "Symbol": "ATMEGA328P-AU",
+        "Currency": "EUR",
+        "Amount": 1250,
+        "Unit": "pcs",
+        "PriceList": [
+          {"Amount": 1,    "PriceValue": 3.28},
+          {"Amount": 10,   "PriceValue": 2.71},
+          {"Amount": 100,  "PriceValue": 2.33},
+          {"Amount": 1000, "PriceValue": 1.98}
+        ]
+      }
+    ]
+  }
+}
