@@ -14,6 +14,7 @@ from pcb_cost_estimator.logger import setup_logging
 from pcb_cost_estimator.bom_parser import BomParser
 from pcb_cost_estimator.cost_estimator import CostEstimator
 from pcb_cost_estimator.llm_enrichment import create_enrichment_service
+from pcb_cost_estimator.models import SourcingMode
 from pcb_cost_estimator.reporting import generate_report
 
 
@@ -99,6 +100,18 @@ def main(ctx: click.Context, config: Path, verbose: bool) -> None:
     envvar="LLM_API_KEY",
     help="LLM API key (can also use OPENAI_API_KEY or ANTHROPIC_API_KEY env vars)",
 )
+@click.option(
+    "--sourcing-mode",
+    type=click.Choice(["global", "eu-preferred", "eu-only"], case_sensitive=False),
+    default="global",
+    show_default=True,
+    help=(
+        "Sourcing strategy for distributor selection. "
+        "'global' uses the cheapest price from any distributor. "
+        "'eu-preferred' prefers EU/UK distributors within a configurable premium threshold (default 30%). "
+        "'eu-only' restricts to EU/UK distributors only and flags unavailable parts."
+    ),
+)
 @click.pass_context
 def estimate(
     ctx: click.Context,
@@ -108,7 +121,8 @@ def estimate(
     board_quantity: int,
     enable_llm: bool,
     llm_provider: Optional[str],
-    llm_api_key: Optional[str]
+    llm_api_key: Optional[str],
+    sourcing_mode: str,
 ) -> None:
     """Estimate PCB cost from Bill of Materials (BOM) file.
 
@@ -117,8 +131,17 @@ def estimate(
     logger = logging.getLogger(__name__)
     config_dict = ctx.obj.get("config", {})
 
+    # Map CLI sourcing-mode string to SourcingMode enum
+    _sourcing_mode_map = {
+        "global": SourcingMode.GLOBAL,
+        "eu-preferred": SourcingMode.EU_PREFERRED,
+        "eu-only": SourcingMode.EU_ONLY,
+    }
+    sourcing_mode_enum = _sourcing_mode_map[sourcing_mode.lower()]
+
     logger.info(f"Processing BOM file: {bom_file}")
     logger.info(f"Board quantity: {board_quantity}")
+    logger.info(f"Sourcing mode: {sourcing_mode_enum.value}")
 
     try:
         # Parse BOM file
@@ -178,8 +201,10 @@ def estimate(
         estimator = CostEstimator(cost_config, llm_enrichment=llm_service)
 
         # Estimate costs
-        click.echo("Estimating costs...")
-        cost_estimate = estimator.estimate_bom_cost(bom_result, board_quantity)
+        click.echo(f"Estimating costs (sourcing mode: {sourcing_mode_enum.value})...")
+        cost_estimate = estimator.estimate_bom_cost(
+            bom_result, board_quantity, sourcing_mode=sourcing_mode_enum
+        )
 
         # Auto-detect format from output file extension if output specified
         report_format = format

@@ -28,7 +28,7 @@ class TestComponentClassifier:
             quantity=1,
             category=ComponentCategory.UNKNOWN,
         )
-        category = classifier.classify_component(item)
+        category, _ = classifier.classify_component(item)
         assert category == ComponentCategory.RESISTOR
 
     def test_classify_by_ref_des_capacitor(self):
@@ -39,7 +39,7 @@ class TestComponentClassifier:
             quantity=1,
             category=ComponentCategory.UNKNOWN,
         )
-        category = classifier.classify_component(item)
+        category, _ = classifier.classify_component(item)
         assert category == ComponentCategory.CAPACITOR
 
     def test_classify_by_ref_des_ic(self):
@@ -50,7 +50,7 @@ class TestComponentClassifier:
             quantity=1,
             category=ComponentCategory.UNKNOWN,
         )
-        category = classifier.classify_component(item)
+        category, _ = classifier.classify_component(item)
         assert category == ComponentCategory.IC
 
     def test_classify_by_mpn_resistor(self):
@@ -62,7 +62,7 @@ class TestComponentClassifier:
             manufacturer_part_number="RC0603FR-0710KL",
             category=ComponentCategory.UNKNOWN,
         )
-        category = classifier.classify_component(item)
+        category, _ = classifier.classify_component(item)
         assert category == ComponentCategory.RESISTOR
 
     def test_classify_by_mpn_capacitor(self):
@@ -74,7 +74,7 @@ class TestComponentClassifier:
             manufacturer_part_number="GRM188R71C104KA01D",
             category=ComponentCategory.UNKNOWN,
         )
-        category = classifier.classify_component(item)
+        category, _ = classifier.classify_component(item)
         assert category == ComponentCategory.CAPACITOR
 
     def test_classify_by_mpn_ic(self):
@@ -86,7 +86,7 @@ class TestComponentClassifier:
             manufacturer_part_number="LM358DR",
             category=ComponentCategory.UNKNOWN,
         )
-        category = classifier.classify_component(item)
+        category, _ = classifier.classify_component(item)
         assert category == ComponentCategory.IC
 
     def test_classify_by_description(self):
@@ -98,7 +98,7 @@ class TestComponentClassifier:
             description="Ceramic Capacitor 100nF 50V",
             category=ComponentCategory.UNKNOWN,
         )
-        category = classifier.classify_component(item)
+        category, _ = classifier.classify_component(item)
         assert category == ComponentCategory.CAPACITOR
 
     def test_classify_already_set(self):
@@ -109,7 +109,7 @@ class TestComponentClassifier:
             quantity=1,
             category=ComponentCategory.INDUCTOR,  # Intentionally wrong
         )
-        category = classifier.classify_component(item)
+        category, _ = classifier.classify_component(item)
         assert category == ComponentCategory.INDUCTOR  # Should keep existing
 
 
@@ -253,7 +253,7 @@ class TestCostEstimator:
             package="0805",
         )
 
-        cost = estimator._estimate_component_cost(item, board_quantity=1)
+        cost, _ = estimator._estimate_component_cost(item, board_quantity=1)
 
         assert cost.reference_designator == "R1"
         assert cost.quantity == 10
@@ -273,7 +273,7 @@ class TestCostEstimator:
             package="BGA-256",
         )
 
-        cost = estimator._estimate_component_cost(item, board_quantity=1)
+        cost, _ = estimator._estimate_component_cost(item, board_quantity=1)
 
         # BGA has 2.0x multiplier
         assert cost.unit_cost_typical == 4.00  # 2.00 * 2.0
@@ -289,7 +289,7 @@ class TestCostEstimator:
             package="0805",
         )
 
-        cost = estimator._estimate_component_cost(item, board_quantity=1)
+        cost, _ = estimator._estimate_component_cost(item, board_quantity=1)
 
         # Check price breaks
         assert len(cost.price_breaks) == 5

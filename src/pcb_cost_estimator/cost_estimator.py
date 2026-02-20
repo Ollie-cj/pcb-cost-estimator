@@ -15,8 +15,11 @@ from .models import (
     AssemblyCost,
     OverheadCosts,
     CostEstimate,
+    SourcingMode,
+    ProvenanceScore,
 )
-from .config import CostModelConfig, CategoryPricing, PackagePricing
+from .config import CostModelConfig, CategoryPricing, PackagePricing, load_cost_model_config
+from .component_intelligence import ComponentIntelligenceService
 
 
 logger = logging.getLogger(__name__)
@@ -365,35 +368,43 @@ class CostEstimator:
 
     def __init__(
         self,
-        config: CostModelConfig,
-        llm_enrichment: Optional['LLMEnrichmentService'] = None
+        config: Optional[CostModelConfig] = None,
+        llm_enrichment: Optional['LLMEnrichmentService'] = None,
+        intelligence_service: Optional[ComponentIntelligenceService] = None,
     ):
         """Initialize cost estimator with configuration.
 
         Args:
-            config: Cost model configuration
+            config: Cost model configuration (uses defaults if not provided)
             llm_enrichment: Optional LLM enrichment service for enhanced analysis
+            intelligence_service: Optional component intelligence service for provenance-aware sourcing
         """
-        self.config = config
+        self.config = config if config is not None else load_cost_model_config()
         self.component_classifier = ComponentClassifier()
         self.package_classifier = PackageClassifier()
         self.llm_enrichment = llm_enrichment
+        self.intelligence_service = intelligence_service or ComponentIntelligenceService()
 
     def estimate_bom_cost(
         self,
         bom_result: BomParseResult,
         board_quantity: int = 1,
+        sourcing_mode: SourcingMode = SourcingMode.GLOBAL,
     ) -> CostEstimate:
         """Estimate total cost for a BoM.
 
         Args:
             bom_result: Parsed BoM result
             board_quantity: Number of boards to manufacture
+            sourcing_mode: Sourcing strategy (GLOBAL, EU_PREFERRED, EU_ONLY)
 
         Returns:
             Complete cost estimate with itemized breakdown
         """
-        logger.info(f"Estimating cost for {len(bom_result.items)} components, {board_quantity} boards")
+        logger.info(
+            f"Estimating cost for {len(bom_result.items)} components, "
+            f"{board_quantity} boards, sourcing_mode={sourcing_mode.value}"
+        )
 
         # Filter out DNP items
         active_items = [item for item in bom_result.items if not item.dnp]
@@ -405,7 +416,9 @@ class CostEstimator:
 
         for item in active_items:
             try:
-                cost_estimate, item_warnings = self._estimate_component_cost(item, board_quantity)
+                cost_estimate, item_warnings = self._estimate_component_cost(
+                    item, board_quantity, sourcing_mode
+                )
                 component_costs.append(cost_estimate)
                 warnings.extend(item_warnings)
             except Exception as e:
@@ -484,6 +497,39 @@ class CostEstimator:
                             f"{result.mpn}: Medium obsolescence risk - monitor availability"
                         )
 
+        # Collect provenance-flagged parts
+        provenance_flagged_parts = [
+            cost.reference_designator
+            for cost in component_costs
+            if cost.provenance_score and cost.provenance_score.flagged
+        ]
+
+        # Add provenance warnings
+        if provenance_flagged_parts and sourcing_mode != SourcingMode.GLOBAL:
+            if sourcing_mode == SourcingMode.EU_ONLY:
+                high_risk = [
+                    cost.reference_designator
+                    for cost in component_costs
+                    if cost.provenance_score
+                    and cost.provenance_score.provenance_risk.value == "high"
+                ]
+                if high_risk:
+                    warnings.append(
+                        f"EU_ONLY: {len(high_risk)} component(s) have no EU/UK source "
+                        f"(provenance_risk=HIGH): {', '.join(high_risk)}"
+                    )
+            elif sourcing_mode == SourcingMode.EU_PREFERRED:
+                fallback_parts = [
+                    cost.reference_designator
+                    for cost in component_costs
+                    if cost.provenance_score and cost.provenance_score.flagged
+                ]
+                if fallback_parts:
+                    warnings.append(
+                        f"EU_PREFERRED: {len(fallback_parts)} component(s) fell back to global "
+                        f"sourcing: {', '.join(fallback_parts)}"
+                    )
+
         # Combine warnings and notes
         all_warnings = list(bom_result.warnings) + warnings
         all_notes = obsolescence_notes
@@ -492,6 +538,7 @@ class CostEstimator:
             file_path=bom_result.file_path,
             timestamp=datetime.now().isoformat(),
             currency="USD",
+            sourcing_mode=sourcing_mode,
             component_costs=component_costs,
             assembly_cost=assembly_cost,
             overhead_costs=overhead_costs,
@@ -501,6 +548,7 @@ class CostEstimator:
             total_cost_per_board_low=total_cost_per_board_low,
             total_cost_per_board_typical=total_cost_per_board_typical,
             total_cost_per_board_high=total_cost_per_board_high,
+            provenance_flagged_parts=provenance_flagged_parts,
             warnings=all_warnings,
             notes=all_notes,
         )
@@ -509,12 +557,14 @@ class CostEstimator:
         self,
         item: BomItem,
         board_quantity: int,
+        sourcing_mode: SourcingMode = SourcingMode.GLOBAL,
     ) -> Tuple[ComponentCostEstimate, List[str]]:
         """Estimate cost for a single component.
 
         Args:
             item: BomItem to estimate
             board_quantity: Number of boards
+            sourcing_mode: Sourcing strategy for provenance scoring
 
         Returns:
             Tuple of (ComponentCostEstimate with price breaks, list of warnings)
@@ -551,11 +601,59 @@ class CostEstimator:
         )
 
         # Build notes list
-        notes = list(item.notes) if item.notes else []
+        notes: List[str] = [item.notes] if item.notes else []
         if llm_metadata:
             notes.append(
                 f"LLM classification (confidence: {llm_metadata['confidence']:.2f})"
             )
+
+        # Provenance scoring via ComponentIntelligenceService
+        provenance_score: Optional[ProvenanceScore] = None
+        eu_price_delta_pct: Optional[float] = None
+        if sourcing_mode != SourcingMode.GLOBAL:
+            provenance_score = self.intelligence_service.get_component_info(
+                item=item,
+                base_unit_price=unit_cost_typical,
+                sourcing_mode=sourcing_mode,
+                category=category,
+            )
+            eu_price_delta_pct = provenance_score.eu_price_delta_pct
+
+            # For EU_PREFERRED: if within threshold, use EU price as typical unit cost
+            if sourcing_mode == SourcingMode.EU_PREFERRED and provenance_score.eu_available:
+                delta = provenance_score.eu_price_delta_pct or 0.0
+                if delta <= self.intelligence_service.eu_premium_threshold * 100:
+                    if provenance_score.eu_unit_price is not None:
+                        eu_price = provenance_score.eu_unit_price
+                        unit_cost_typical = eu_price
+                        unit_cost_low = eu_price * (unit_cost_low / (base_pricing.base_price_typical * package_multiplier) if base_pricing.base_price_typical * package_multiplier > 0 else 1.0)
+                        unit_cost_high = eu_price * (unit_cost_high / (base_pricing.base_price_typical * package_multiplier) if base_pricing.base_price_typical * package_multiplier > 0 else 1.0)
+                        # Recalculate totals with EU price
+                        total_cost_low = unit_cost_low * item.quantity
+                        total_cost_typical = unit_cost_typical * item.quantity
+                        total_cost_high = unit_cost_high * item.quantity
+
+            # For EU_ONLY: use EU price if available, otherwise keep global but flag
+            elif sourcing_mode == SourcingMode.EU_ONLY and provenance_score.eu_available:
+                if provenance_score.eu_unit_price is not None:
+                    eu_price = provenance_score.eu_unit_price
+                    unit_cost_typical = eu_price
+                    total_cost_low = unit_cost_low * item.quantity
+                    total_cost_typical = unit_cost_typical * item.quantity
+                    total_cost_high = unit_cost_high * item.quantity
+
+            if provenance_score.flagged and provenance_score.flag_reason:
+                notes.append(f"Provenance: {provenance_score.flag_reason}")
+
+        # Always compute provenance score in GLOBAL mode too (for delta reference)
+        if sourcing_mode == SourcingMode.GLOBAL:
+            provenance_score = self.intelligence_service.get_component_info(
+                item=item,
+                base_unit_price=unit_cost_typical,
+                sourcing_mode=SourcingMode.GLOBAL,
+                category=category,
+            )
+            eu_price_delta_pct = provenance_score.eu_price_delta_pct
 
         # LLM price reasonableness check (if enabled)
         if self.llm_enrichment and item.manufacturer_part_number:
@@ -599,7 +697,9 @@ class CostEstimator:
             manufacturer=item.manufacturer,
             manufacturer_part_number=item.manufacturer_part_number,
             description=item.description,
-            notes=notes,
+            notes=notes if notes else None,
+            provenance_score=provenance_score,
+            eu_price_delta_pct=eu_price_delta_pct,
         )
 
         return estimate, warnings
