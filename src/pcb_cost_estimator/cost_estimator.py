@@ -599,7 +599,7 @@ class CostEstimator:
             manufacturer=item.manufacturer,
             manufacturer_part_number=item.manufacturer_part_number,
             description=item.description,
-            notes=notes,
+            notes="\n".join(notes) if notes else None,
         )
 
         return estimate, warnings
