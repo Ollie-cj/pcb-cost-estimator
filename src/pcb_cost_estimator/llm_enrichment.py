@@ -458,7 +458,7 @@ class LLMEnrichmentService:
             "relay": ComponentCategory.RELAY,
             "fuse": ComponentCategory.FUSE,
             "transformer": ComponentCategory.TRANSFORMER,
-            "sensor": ComponentCategory.SENSOR,
+            "sensor": ComponentCategory.OTHER,
             "other": ComponentCategory.OTHER,
             "unknown": ComponentCategory.UNKNOWN,
         }

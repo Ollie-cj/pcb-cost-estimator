@@ -1,37 +1,47 @@
 {
   "active_component": {
-    "risk_level": "low",
+    "obsolescence_risk": "low",
     "confidence": 0.95,
     "lifecycle_status": "active",
-    "estimated_years_available": 10,
+    "risk_factors": [],
+    "alternatives": [],
+    "recommendations": ["Continue using this component in new designs"],
     "reasoning": "The STM32F407VGT6 is an active product in STMicroelectronics' current portfolio. As a popular microcontroller in widespread use, it has strong market demand and is expected to remain available for many years."
   },
   "nrnd_component": {
-    "risk_level": "medium",
+    "obsolescence_risk": "medium",
     "confidence": 0.88,
     "lifecycle_status": "NRND",
-    "estimated_years_available": 2,
+    "risk_factors": ["Marked as Not Recommended for New Designs"],
+    "alternatives": [],
+    "recommendations": ["Find alternative for new designs"],
     "reasoning": "This component has been marked as Not Recommended for New Designs (NRND) by the manufacturer. While still available for purchase, it may become obsolete within 1-3 years. Consider finding an alternative for new designs."
   },
   "obsolete_component": {
-    "risk_level": "high",
+    "obsolescence_risk": "high",
     "confidence": 0.92,
     "lifecycle_status": "obsolete",
-    "estimated_years_available": 0,
+    "risk_factors": ["Discontinued by manufacturer"],
+    "alternatives": [],
+    "recommendations": ["Immediate redesign recommended"],
     "reasoning": "This component has been discontinued by the manufacturer and is no longer in production. Remaining stock may be available from distributors, but long-term availability is not guaranteed. Immediate redesign recommended."
   },
   "at_risk_component": {
-    "risk_level": "medium",
+    "obsolescence_risk": "medium",
     "confidence": 0.75,
     "lifecycle_status": "active",
-    "estimated_years_available": 3,
+    "risk_factors": ["Older product family", "Newer alternatives available"],
+    "alternatives": [],
+    "recommendations": ["Plan for migration to newer alternatives"],
     "reasoning": "While currently active, this component is from an older product family. The manufacturer has released newer alternatives, suggesting this may be phased out in the next few years."
   },
   "long_term_component": {
-    "risk_level": "low",
+    "obsolescence_risk": "low",
     "confidence": 0.90,
     "lifecycle_status": "active",
-    "estimated_years_available": 15,
+    "risk_factors": [],
+    "alternatives": [],
+    "recommendations": ["Safe to use in long-term designs"],
     "reasoning": "This is an automotive-grade component with extended lifecycle commitment. These components typically have 10-15+ year availability guarantees."
   }
 }
