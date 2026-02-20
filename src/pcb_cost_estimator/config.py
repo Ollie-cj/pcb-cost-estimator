@@ -393,3 +393,75 @@ def save_config(config_data: Dict[str, Any], config_path: Path) -> None:
         yaml.dump(config.model_dump(), f, default_flow_style=False, sort_keys=False)
 
     logger.info(f"Configuration saved to {config_path}")
+
+
+def load_cost_model_config(
+    config_path: Optional[Path] = None,
+) -> "CostModelConfig":
+    """Load cost model configuration from YAML file.
+
+    Falls back to searching for ``config/cost_model.yaml`` relative to the
+    current working directory or the package root.  If no file is found, a
+    ``CostModelConfig`` with sensible hard-coded defaults is returned so that
+    the estimator is usable without any configuration files.
+
+    Args:
+        config_path: Optional explicit path to the cost model YAML file.
+
+    Returns:
+        CostModelConfig populated from the YAML file (or defaults).
+    """
+    search_paths = []
+    if config_path:
+        search_paths.append(config_path)
+
+    # Relative to CWD
+    search_paths.append(Path("config/cost_model.yaml"))
+    # Relative to this file (src/pcb_cost_estimator -> repo root -> config/)
+    _pkg_root = Path(__file__).parent.parent.parent
+    search_paths.append(_pkg_root / "config" / "cost_model.yaml")
+
+    for path in search_paths:
+        if path.exists():
+            logger.debug(f"Loading cost model config from {path}")
+            try:
+                with open(path, "r") as f:
+                    data = yaml.safe_load(f)
+                return CostModelConfig(**data)
+            except Exception as exc:
+                logger.warning(f"Failed to load cost model config from {path}: {exc}")
+
+    logger.warning("No cost_model.yaml found; using built-in pricing defaults")
+    # Build a reasonable default config matching the bundled cost_model.yaml
+    return CostModelConfig(
+        category_pricing={
+            "resistor": CategoryPricing(base_price_low=0.001, base_price_typical=0.005, base_price_high=0.02),
+            "capacitor": CategoryPricing(base_price_low=0.002, base_price_typical=0.01, base_price_high=0.05),
+            "inductor": CategoryPricing(base_price_low=0.01, base_price_typical=0.05, base_price_high=0.20),
+            "ic": CategoryPricing(base_price_low=0.50, base_price_typical=2.00, base_price_high=10.00),
+            "connector": CategoryPricing(base_price_low=0.10, base_price_typical=0.50, base_price_high=2.00),
+            "diode": CategoryPricing(base_price_low=0.01, base_price_typical=0.05, base_price_high=0.20),
+            "transistor": CategoryPricing(base_price_low=0.02, base_price_typical=0.10, base_price_high=0.50),
+            "led": CategoryPricing(base_price_low=0.02, base_price_typical=0.10, base_price_high=0.50),
+            "crystal": CategoryPricing(base_price_low=0.10, base_price_typical=0.30, base_price_high=1.00),
+            "switch": CategoryPricing(base_price_low=0.05, base_price_typical=0.20, base_price_high=1.00),
+            "relay": CategoryPricing(base_price_low=0.50, base_price_typical=1.50, base_price_high=5.00),
+            "fuse": CategoryPricing(base_price_low=0.05, base_price_typical=0.20, base_price_high=1.00),
+            "transformer": CategoryPricing(base_price_low=0.50, base_price_typical=2.00, base_price_high=10.00),
+            "other": CategoryPricing(base_price_low=0.05, base_price_typical=0.50, base_price_high=2.00),
+            "unknown": CategoryPricing(base_price_low=0.10, base_price_typical=1.00, base_price_high=5.00),
+        },
+        package_pricing={
+            "smd_small": PackagePricing(multiplier=1.0),
+            "smd_medium": PackagePricing(multiplier=1.0),
+            "smd_large": PackagePricing(multiplier=1.2),
+            "soic": PackagePricing(multiplier=1.1),
+            "qfp": PackagePricing(multiplier=1.3),
+            "qfn": PackagePricing(multiplier=1.4),
+            "bga": PackagePricing(multiplier=2.0),
+            "through_hole": PackagePricing(multiplier=1.2),
+            "connector": PackagePricing(multiplier=1.5),
+            "other": PackagePricing(multiplier=1.0),
+            "unknown": PackagePricing(multiplier=1.0),
+        },
+    )

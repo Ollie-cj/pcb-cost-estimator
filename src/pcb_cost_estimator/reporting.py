@@ -187,7 +187,7 @@ class CostReportGenerator:
 
         # Check component notes for high-cost items
         for comp in self.cost_estimate.component_costs:
-            if comp.total_cost_typical > 10.0:  # Arbitrary threshold
+            if comp.total_cost_typical >= 10.0:  # Arbitrary threshold
                 risks['high_cost'].append({
                     'type': 'high_cost',
                     'component': comp.reference_designator,

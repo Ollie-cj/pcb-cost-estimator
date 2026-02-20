@@ -5,6 +5,22 @@ from enum import Enum
 from pydantic import BaseModel, Field, field_validator
 
 
+class SourcingMode(str, Enum):
+    """Sourcing strategy for distributor selection."""
+
+    GLOBAL = "global"
+    EU_PREFERRED = "eu_preferred"
+    EU_ONLY = "eu_only"
+
+
+class ProvenanceRisk(str, Enum):
+    """Provenance risk level for a component."""
+
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+
+
 class ComponentCategory(str, Enum):
     """Component category enumeration."""
 
@@ -127,6 +143,25 @@ class PackageType(str, Enum):
     UNKNOWN = "unknown"
 
 
+class ProvenanceScore(BaseModel):
+    """Provenance information for a component's sourcing."""
+
+    sourcing_mode: SourcingMode = Field(..., description="Sourcing mode used for this component")
+    eu_available: bool = Field(default=False, description="Whether EU sourcing is available")
+    eu_distributor: Optional[str] = Field(None, description="Name of EU distributor used")
+    global_distributor: Optional[str] = Field(None, description="Name of global distributor used")
+    eu_unit_price: Optional[float] = Field(None, description="Best EU unit price", ge=0.0)
+    global_unit_price: Optional[float] = Field(None, description="Best global unit price", ge=0.0)
+    eu_price_delta_pct: Optional[float] = Field(
+        None, description="EU price premium over global price as percentage (positive = EU is more expensive)"
+    )
+    provenance_risk: ProvenanceRisk = Field(
+        default=ProvenanceRisk.LOW, description="Risk level for provenance"
+    )
+    flagged: bool = Field(default=False, description="Whether this component was flagged for provenance issues")
+    flag_reason: Optional[str] = Field(None, description="Reason for flagging, if applicable")
+
+
 class PriceBreak(BaseModel):
     """Price break for a specific quantity tier."""
 
@@ -163,7 +198,15 @@ class ComponentCostEstimate(BaseModel):
     manufacturer: Optional[str] = Field(None, description="Manufacturer name")
     manufacturer_part_number: Optional[str] = Field(None, description="MPN")
     description: Optional[str] = Field(None, description="Component description")
-    notes: Optional[str] = Field(None, description="Additional notes or warnings")
+    notes: Optional[List[str]] = Field(None, description="Additional notes or warnings")
+
+    # Provenance fields
+    provenance_score: Optional[ProvenanceScore] = Field(
+        None, description="Provenance score for this component"
+    )
+    eu_price_delta_pct: Optional[float] = Field(
+        None, description="EU price premium over global price as percentage"
+    )
 
 
 class AssemblyCost(BaseModel):
@@ -238,6 +281,14 @@ class CostEstimate(BaseModel):
     total_cost_per_board_low: float = Field(..., description="Low estimate of cost per board", ge=0.0)
     total_cost_per_board_typical: float = Field(..., description="Typical cost per board", ge=0.0)
     total_cost_per_board_high: float = Field(..., description="High estimate of cost per board", ge=0.0)
+
+    # Sourcing metadata
+    sourcing_mode: SourcingMode = Field(
+        default=SourcingMode.GLOBAL, description="Sourcing mode used for this estimate"
+    )
+    provenance_flagged_parts: List[str] = Field(
+        default_factory=list, description="Reference designators of parts flagged for provenance issues"
+    )
 
     # Warnings and notes
     warnings: List[str] = Field(default_factory=list, description="Warnings about the estimate")

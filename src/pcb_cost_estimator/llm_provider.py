@@ -97,6 +97,26 @@ class LLMProvider(ABC):
         """
         pass
 
+    def complete(
+        self,
+        prompt: str,
+        system_prompt: Optional[str] = None,
+    ) -> Optional[str]:
+        """Call the LLM and return the response as a JSON string (compatibility alias).
+
+        Attempts JSON parsing (including stripping markdown code blocks).  On
+        success returns ``json.dumps(data)``; on failure returns the raw
+        response text; returns ``None`` only if no response was obtained.
+        """
+        response = self.call(prompt, system_prompt, json_mode=True)
+        if response.success and response.data:
+            return json.dumps(response.data)
+        # Fallback: try with json_mode=False and return raw text
+        response = self.call(prompt, system_prompt, json_mode=False)
+        if response.success:
+            return response.raw_response
+        return None
+
     def call_with_retry(
         self,
         prompt: str,

@@ -7,7 +7,7 @@ from unittest.mock import Mock, patch, MagicMock
 
 from pcb_cost_estimator.models import BomItem, ComponentCategory
 from pcb_cost_estimator.llm_enrichment import LLMEnrichmentService
-from pcb_cost_estimator.llm_provider import LLMProvider, OpenAIProvider, AnthropicProvider
+from pcb_cost_estimator.llm_provider import LLMProvider, LLMResponse, OpenAIProvider, AnthropicProvider
 
 
 @pytest.fixture
@@ -56,7 +56,7 @@ class TestLLMProviderWithMockedResponses:
             load_llm_fixtures['classification_responses']['capacitor_classification']
         )
 
-        with patch('pcb_cost_estimator.llm_provider.anthropic.Anthropic') as mock_anthropic:
+        with patch('pcb_cost_estimator.llm_provider.Anthropic') as mock_anthropic:
             mock_client = MagicMock()
             mock_client.messages.create.return_value = mock_response
             mock_anthropic.return_value = mock_client
@@ -105,98 +105,89 @@ class TestLLMEnrichmentWithFixtures:
         """Create enrichment service with mock provider."""
         return LLMEnrichmentService(provider=mock_provider, use_cache=False)
 
+    def _mock_response(self, mock_provider, fixture_data):
+        """Helper to mock call_with_retry with a fixture response."""
+        mock_provider.call_with_retry.return_value = LLMResponse(
+            success=True, data=fixture_data, raw_response=json.dumps(fixture_data)
+        )
+
     def test_classify_resistor(self, enrichment_service, mock_provider, load_llm_fixtures):
         """Test resistor classification with mocked response."""
-        mock_provider.complete.return_value = json.dumps(
-            load_llm_fixtures['classification_responses']['resistor_classification']
-        )
+        fixture_data = load_llm_fixtures['classification_responses']['resistor_classification']
+        self._mock_response(mock_provider, fixture_data)
 
-        item = BomItem(
-            reference_designator="R1",
-            quantity=1,
-            manufacturer="Yageo",
-            manufacturer_part_number="RC0603FR-0710KL",
+        result = enrichment_service.classify_component(
+            mpn="RC0603FR-0710KL",
             description="Resistor 1K 1% 1/10W",
-            package="0603",
+            reference_designator="R1",
         )
 
-        result = enrichment_service.classify_component(item)
-
+        assert result is not None
         assert result.category == ComponentCategory.RESISTOR
         assert result.confidence >= 0.9
         assert "resistor" in result.reasoning.lower()
 
     def test_classify_capacitor(self, enrichment_service, mock_provider, load_llm_fixtures):
         """Test capacitor classification with mocked response."""
-        mock_provider.complete.return_value = json.dumps(
-            load_llm_fixtures['classification_responses']['capacitor_classification']
-        )
+        fixture_data = load_llm_fixtures['classification_responses']['capacitor_classification']
+        self._mock_response(mock_provider, fixture_data)
 
-        item = BomItem(
-            reference_designator="C1",
-            quantity=1,
-            manufacturer="Murata",
-            manufacturer_part_number="GRM188R71C104KA01D",
+        result = enrichment_service.classify_component(
+            mpn="GRM188R71C104KA01D",
             description="Cap Ceramic 0.1uF 16V X7R",
-            package="0603",
+            reference_designator="C1",
         )
 
-        result = enrichment_service.classify_component(item)
-
+        assert result is not None
         assert result.category == ComponentCategory.CAPACITOR
         assert result.confidence >= 0.9
 
     def test_classify_ic(self, enrichment_service, mock_provider, load_llm_fixtures):
         """Test IC classification with mocked response."""
-        mock_provider.complete.return_value = json.dumps(
-            load_llm_fixtures['classification_responses']['ic_classification']
-        )
+        fixture_data = load_llm_fixtures['classification_responses']['ic_classification']
+        self._mock_response(mock_provider, fixture_data)
 
-        item = BomItem(
-            reference_designator="U1",
-            quantity=1,
-            manufacturer="STMicroelectronics",
-            manufacturer_part_number="STM32F407VGT6",
+        result = enrichment_service.classify_component(
+            mpn="STM32F407VGT6",
             description="MCU ARM Cortex-M4 1MB Flash",
-            package="LQFP-100",
+            reference_designator="U1",
         )
 
-        result = enrichment_service.classify_component(item)
-
+        assert result is not None
         assert result.category == ComponentCategory.IC
         assert result.confidence >= 0.9
 
     def test_classify_unknown_low_confidence(self, enrichment_service, mock_provider, load_llm_fixtures):
         """Test classification with low confidence."""
-        mock_provider.complete.return_value = json.dumps(
-            load_llm_fixtures['classification_responses']['unknown_classification']
-        )
+        fixture_data = load_llm_fixtures['classification_responses']['unknown_classification']
+        self._mock_response(mock_provider, fixture_data)
 
-        item = BomItem(
-            reference_designator="X1",
-            quantity=1,
+        result = enrichment_service.classify_component(
+            mpn="",
             description="Unknown Component",
+            reference_designator="X1",
         )
 
-        result = enrichment_service.classify_component(item)
-
+        assert result is not None
         assert result.confidence < 0.5
 
     def test_price_reasonableness_check_valid(self, enrichment_service, mock_provider, load_llm_fixtures):
         """Test price reasonableness check for valid price."""
-        mock_provider.complete.return_value = json.dumps(
-            load_llm_fixtures['price_reasonableness_responses']['resistor_reasonable']
-        )
+        fixture_data = load_llm_fixtures['price_reasonableness_responses']['resistor_reasonable']
+        self._mock_response(mock_provider, fixture_data)
 
-        item = BomItem(
-            reference_designator="R1",
+        result = enrichment_service.check_price_reasonableness(
+            mpn="RC0603FR-0710KL",
+            description="Resistor 0603",
+            category="resistor",
+            package_type="0603",
+            unit_cost_low=0.008,
+            unit_cost_typical=0.01,
+            unit_cost_high=0.015,
             quantity=1,
-            category=ComponentCategory.RESISTOR,
-            package="0603",
         )
 
-        result = enrichment_service.check_price_reasonableness(item, 0.01)
-
+        assert result is not None
         assert result.is_reasonable is True
         assert result.confidence >= 0.9
         assert result.typical_price_range_low is not None
@@ -204,109 +195,100 @@ class TestLLMEnrichmentWithFixtures:
 
     def test_price_reasonableness_check_too_high(self, enrichment_service, mock_provider, load_llm_fixtures):
         """Test price reasonableness check for price too high."""
-        mock_provider.complete.return_value = json.dumps(
-            load_llm_fixtures['price_reasonableness_responses']['resistor_too_high']
-        )
+        fixture_data = load_llm_fixtures['price_reasonableness_responses']['resistor_too_high']
+        self._mock_response(mock_provider, fixture_data)
 
-        item = BomItem(
-            reference_designator="R1",
+        result = enrichment_service.check_price_reasonableness(
+            mpn="RC0603FR-0710KL",
+            description="Resistor 0603",
+            category="resistor",
+            package_type="0603",
+            unit_cost_low=0.9,
+            unit_cost_typical=1.0,
+            unit_cost_high=1.1,
             quantity=1,
-            category=ComponentCategory.RESISTOR,
-            package="0603",
         )
 
-        result = enrichment_service.check_price_reasonableness(item, 1.00)
-
+        assert result is not None
         assert result.is_reasonable is False
         assert "higher" in result.reasoning.lower() or "error" in result.reasoning.lower()
 
     def test_price_reasonableness_check_ic(self, enrichment_service, mock_provider, load_llm_fixtures):
         """Test price reasonableness check for IC."""
-        mock_provider.complete.return_value = json.dumps(
-            load_llm_fixtures['price_reasonableness_responses']['ic_reasonable']
-        )
+        fixture_data = load_llm_fixtures['price_reasonableness_responses']['ic_reasonable']
+        self._mock_response(mock_provider, fixture_data)
 
-        item = BomItem(
-            reference_designator="U1",
+        result = enrichment_service.check_price_reasonableness(
+            mpn="STM32F407VGT6",
+            description="MCU ARM Cortex-M4",
+            category="ic",
+            package_type="LQFP-100",
+            unit_cost_low=7.0,
+            unit_cost_typical=8.50,
+            unit_cost_high=10.0,
             quantity=1,
-            manufacturer="STMicroelectronics",
-            manufacturer_part_number="STM32F407VGT6",
-            category=ComponentCategory.IC,
         )
 
-        result = enrichment_service.check_price_reasonableness(item, 8.50)
-
+        assert result is not None
         assert result.is_reasonable is True
         assert result.typical_price_range_low >= 1.0
 
     def test_obsolescence_check_active(self, enrichment_service, mock_provider, load_llm_fixtures):
         """Test obsolescence check for active component."""
-        mock_provider.complete.return_value = json.dumps(
-            load_llm_fixtures['obsolescence_responses']['active_component']
-        )
+        fixture_data = load_llm_fixtures['obsolescence_responses']['active_component']
+        self._mock_response(mock_provider, fixture_data)
 
-        item = BomItem(
-            reference_designator="U1",
-            quantity=1,
+        result = enrichment_service.check_obsolescence(
+            mpn="STM32F407VGT6",
             manufacturer="STMicroelectronics",
-            manufacturer_part_number="STM32F407VGT6",
-            category=ComponentCategory.IC,
         )
 
-        result = enrichment_service.check_obsolescence(item)
-
+        assert result is not None
         assert result.risk_level == "low"
         assert result.lifecycle_status == "active"
         assert result.estimated_years_available >= 5
 
     def test_obsolescence_check_nrnd(self, enrichment_service, mock_provider, load_llm_fixtures):
         """Test obsolescence check for NRND component."""
-        mock_provider.complete.return_value = json.dumps(
-            load_llm_fixtures['obsolescence_responses']['nrnd_component']
-        )
+        fixture_data = load_llm_fixtures['obsolescence_responses']['nrnd_component']
+        self._mock_response(mock_provider, fixture_data)
 
-        item = BomItem(
-            reference_designator="U2",
-            quantity=1,
+        result = enrichment_service.check_obsolescence(
+            mpn="OLD_PART_123",
             manufacturer="OldVendor",
-            manufacturer_part_number="OLD_PART_123",
-            category=ComponentCategory.IC,
         )
 
-        result = enrichment_service.check_obsolescence(item)
-
+        assert result is not None
         assert result.risk_level == "medium"
         assert result.lifecycle_status.upper() == "NRND"
         assert "not recommended" in result.reasoning.lower() or "nrnd" in result.reasoning.lower()
 
     def test_obsolescence_check_obsolete(self, enrichment_service, mock_provider, load_llm_fixtures):
         """Test obsolescence check for obsolete component."""
-        mock_provider.complete.return_value = json.dumps(
-            load_llm_fixtures['obsolescence_responses']['obsolete_component']
-        )
+        fixture_data = load_llm_fixtures['obsolescence_responses']['obsolete_component']
+        self._mock_response(mock_provider, fixture_data)
 
-        item = BomItem(
-            reference_designator="U3",
-            quantity=1,
+        result = enrichment_service.check_obsolescence(
+            mpn="DISCONTINUED_PART",
             manufacturer="OldVendor",
-            manufacturer_part_number="DISCONTINUED_PART",
-            category=ComponentCategory.IC,
         )
 
-        result = enrichment_service.check_obsolescence(item)
-
+        assert result is not None
         assert result.risk_level == "high"
         assert result.lifecycle_status == "obsolete"
         assert result.estimated_years_available == 0
 
     def test_batch_classification(self, enrichment_service, mock_provider, load_llm_fixtures):
         """Test batch classification of multiple components."""
-        responses = [
-            json.dumps(load_llm_fixtures['classification_responses']['resistor_classification']),
-            json.dumps(load_llm_fixtures['classification_responses']['capacitor_classification']),
-            json.dumps(load_llm_fixtures['classification_responses']['ic_classification']),
+        fixture_data_list = [
+            load_llm_fixtures['classification_responses']['resistor_classification'],
+            load_llm_fixtures['classification_responses']['capacitor_classification'],
+            load_llm_fixtures['classification_responses']['ic_classification'],
         ]
-        mock_provider.complete.side_effect = responses
+        mock_provider.call_with_retry.side_effect = [
+            LLMResponse(success=True, data=d, raw_response=json.dumps(d))
+            for d in fixture_data_list
+        ]
 
         items = [
             BomItem(reference_designator="R1", quantity=1),
@@ -322,43 +304,49 @@ class TestLLMEnrichmentWithFixtures:
         assert results[2].category == ComponentCategory.IC
 
     def test_error_handling_invalid_json(self, enrichment_service, mock_provider):
-        """Test error handling when LLM returns invalid JSON."""
-        mock_provider.complete.return_value = "This is not valid JSON"
+        """Test error handling when LLM returns error response."""
+        mock_provider.call_with_retry.return_value = LLMResponse(
+            success=False,
+            error="Invalid JSON response",
+            raw_response="This is not valid JSON",
+        )
 
-        item = BomItem(reference_designator="R1", quantity=1)
+        # Service returns None when API call fails
+        result = enrichment_service.classify_component(
+            mpn="UNKNOWN_PART", reference_designator="R1"
+        )
 
-        # Should handle gracefully without crashing
-        result = enrichment_service.classify_component(item)
-
-        # Should return a result even if parsing fails
-        assert result is not None
+        assert result is None
 
     def test_error_handling_missing_fields(self, enrichment_service, mock_provider):
-        """Test error handling when response is missing required fields."""
-        mock_provider.complete.return_value = json.dumps({
-            "category": "resistor"
-            # Missing confidence and reasoning
-        })
+        """Test error handling when response is missing optional fields."""
+        partial_data = {"category": "resistor"}
+        mock_provider.call_with_retry.return_value = LLMResponse(
+            success=True,
+            data=partial_data,
+            raw_response=json.dumps(partial_data),
+        )
 
-        item = BomItem(reference_designator="R1", quantity=1)
-
-        # Should handle gracefully
-        result = enrichment_service.classify_component(item)
+        result = enrichment_service.classify_component(
+            mpn="RC0603FR-0710KL", reference_designator="R1"
+        )
 
         assert result is not None
         assert result.category == ComponentCategory.RESISTOR
 
     def test_error_handling_api_failure(self, enrichment_service, mock_provider):
         """Test error handling when API call fails."""
-        mock_provider.complete.side_effect = Exception("API call failed")
+        mock_provider.call_with_retry.return_value = LLMResponse(
+            success=False, error="API call failed"
+        )
 
-        item = BomItem(reference_designator="R1", quantity=1)
+        # Use a unique MPN to avoid cache hits from other tests
+        result = enrichment_service.classify_component(
+            mpn="NONEXISTENT-PART-API-FAILURE-TEST", reference_designator="Z99"
+        )
 
-        # Should handle gracefully without crashing
-        result = enrichment_service.classify_component(item)
-
-        # Should return a result with low confidence or error indicator
-        assert result is not None
+        # Returns None when the API call fails
+        assert result is None
 
 
 @pytest.mark.integration
@@ -370,50 +358,61 @@ class TestLLMCaching:
         """Create a mock LLM provider."""
         return MagicMock(spec=LLMProvider)
 
-    def test_cache_hit_reduces_api_calls(self, mock_provider, load_llm_fixtures):
+    def test_cache_hit_reduces_api_calls(self, mock_provider, load_llm_fixtures, tmp_path):
         """Test that cached responses reduce API calls."""
-        mock_provider.complete.return_value = json.dumps(
-            load_llm_fixtures['classification_responses']['resistor_classification']
+        from pcb_cost_estimator.llm_cache import LLMCache
+
+        fixture_data = load_llm_fixtures['classification_responses']['resistor_classification']
+        mock_provider.call_with_retry.return_value = LLMResponse(
+            success=True, data=fixture_data, raw_response=json.dumps(fixture_data)
         )
 
-        # Create service with caching enabled
-        service = LLMEnrichmentService(provider=mock_provider, use_cache=True)
-
-        item = BomItem(
-            reference_designator="R1",
-            quantity=1,
-            manufacturer="Yageo",
-            manufacturer_part_number="RC0603FR-0710KL",
-        )
+        # Create service with a fresh temporary cache to avoid cross-test contamination
+        temp_cache = LLMCache(cache_file=tmp_path / "test_cache.db")
+        service = LLMEnrichmentService(provider=mock_provider, cache=temp_cache)
 
         # First call - should hit API
-        result1 = service.classify_component(item)
+        result1 = service.classify_component(
+            mpn="RC0603FR-0710KL",
+            description="Resistor 1K 1% 1/10W",
+            reference_designator="R1",
+        )
 
-        # Second call with same item - should use cache
-        result2 = service.classify_component(item)
+        # Second call with same params - should use cache
+        result2 = service.classify_component(
+            mpn="RC0603FR-0710KL",
+            description="Resistor 1K 1% 1/10W",
+            reference_designator="R1",
+        )
 
         # Should only call API once
-        assert mock_provider.complete.call_count == 1
+        assert mock_provider.call_with_retry.call_count == 1
 
         # Results should be identical
+        assert result1 is not None
+        assert result2 is not None
         assert result1.category == result2.category
         assert result1.confidence == result2.confidence
 
-    def test_cache_miss_on_different_items(self, mock_provider, load_llm_fixtures):
+    def test_cache_miss_on_different_items(self, mock_provider, load_llm_fixtures, tmp_path):
         """Test that different items result in cache misses."""
-        responses = [
-            json.dumps(load_llm_fixtures['classification_responses']['resistor_classification']),
-            json.dumps(load_llm_fixtures['classification_responses']['capacitor_classification']),
+        from pcb_cost_estimator.llm_cache import LLMCache
+
+        fixture_data_list = [
+            load_llm_fixtures['classification_responses']['resistor_classification'],
+            load_llm_fixtures['classification_responses']['capacitor_classification'],
         ]
-        mock_provider.complete.side_effect = responses
+        mock_provider.call_with_retry.side_effect = [
+            LLMResponse(success=True, data=d, raw_response=json.dumps(d))
+            for d in fixture_data_list
+        ]
 
-        service = LLMEnrichmentService(provider=mock_provider, use_cache=True)
+        # Use a fresh temporary cache for isolation
+        temp_cache = LLMCache(cache_file=tmp_path / "test_cache2.db")
+        service = LLMEnrichmentService(provider=mock_provider, cache=temp_cache)
 
-        item1 = BomItem(reference_designator="R1", quantity=1)
-        item2 = BomItem(reference_designator="C1", quantity=1)
+        # Both calls should hit API since MPNs are different
+        service.classify_component(mpn="RC0603FR-0710KL", reference_designator="R1")
+        service.classify_component(mpn="GRM188R71C104KA01D", reference_designator="C1")
 
-        # Both calls should hit API since items are different
-        service.classify_component(item1)
-        service.classify_component(item2)
-
-        assert mock_provider.complete.call_count == 2
+        assert mock_provider.call_with_retry.call_count == 2

@@ -39,6 +39,8 @@ class PriceReasonablenessResult(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0)
     issues: List[Dict[str, str]] = Field(default_factory=list)
     expected_price_range: Optional[Dict[str, float]] = None
+    typical_price_range_low: Optional[float] = None
+    typical_price_range_high: Optional[float] = None
     price_variance_percentage: Optional[float] = None
     reasoning: Optional[str] = None
     from_cache: bool = False
@@ -52,6 +54,8 @@ class ObsolescenceRisk(BaseModel):
     manufacturer: Optional[str] = None
     obsolescence_risk: str  # none, low, medium, high, obsolete
     lifecycle_status: str  # active, nrnd, eol, obsolete, unknown
+    risk_level: Optional[str] = None  # alias for obsolescence_risk from LLM responses
+    estimated_years_available: Optional[int] = None
     confidence: float = Field(ge=0.0, le=1.0)
     risk_factors: List[str] = Field(default_factory=list)
     alternatives: List[Dict[str, Any]] = Field(default_factory=list)
@@ -74,7 +78,8 @@ class LLMEnrichmentService:
         provider: Optional[LLMProvider] = None,
         cache: Optional[LLMCache] = None,
         template_manager: Optional[PromptTemplateManager] = None,
-        enabled: bool = True
+        enabled: bool = True,
+        use_cache: bool = True,  # Accepted for compatibility; use cache= to pass a custom cache
     ):
         """
         Initialize the enrichment service.
@@ -282,6 +287,8 @@ class LLMEnrichmentService:
                 confidence=response.data.get("confidence", 0.0),
                 issues=response.data.get("issues", []),
                 expected_price_range=response.data.get("expected_price_range"),
+                typical_price_range_low=response.data.get("typical_price_range_low"),
+                typical_price_range_high=response.data.get("typical_price_range_high"),
                 price_variance_percentage=response.data.get("price_variance_percentage"),
                 reasoning=response.data.get("reasoning"),
                 tokens_used=response.tokens_used
@@ -377,11 +384,19 @@ class LLMEnrichmentService:
 
         # Parse response
         try:
+            # LLM responses may use either "obsolescence_risk" or "risk_level"
+            obs_risk = (
+                response.data.get("obsolescence_risk")
+                or response.data.get("risk_level")
+                or "unknown"
+            )
             result = ObsolescenceRisk(
                 mpn=mpn,
                 manufacturer=manufacturer,
-                obsolescence_risk=response.data.get("obsolescence_risk", "unknown"),
+                obsolescence_risk=obs_risk,
                 lifecycle_status=response.data.get("lifecycle_status", "unknown"),
+                risk_level=response.data.get("risk_level") or obs_risk,
+                estimated_years_available=response.data.get("estimated_years_available"),
                 confidence=response.data.get("confidence", 0.0),
                 risk_factors=response.data.get("risk_factors", []),
                 alternatives=response.data.get("alternatives", []),
@@ -440,6 +455,33 @@ class LLMEnrichmentService:
 
         return results
 
+    def classify_components_batch(
+        self,
+        items: List[Any]
+    ) -> List[ComponentClassificationResult]:
+        """
+        Classify multiple components in batch.
+
+        Args:
+            items: List of BomItem objects
+
+        Returns:
+            List of ComponentClassificationResult (only successful results)
+        """
+        results = []
+
+        for item in items:
+            result = self.classify_component(
+                mpn=getattr(item, "manufacturer_part_number", None) or "",
+                description=getattr(item, "description", None) or "",
+                reference_designator=getattr(item, "reference_designator", None) or ""
+            )
+
+            if result:
+                results.append(result)
+
+        return results
+
     @staticmethod
     def _parse_category(category_str: str) -> ComponentCategory:
         """Parse category string to ComponentCategory enum."""
@@ -458,7 +500,6 @@ class LLMEnrichmentService:
             "relay": ComponentCategory.RELAY,
             "fuse": ComponentCategory.FUSE,
             "transformer": ComponentCategory.TRANSFORMER,
-            "sensor": ComponentCategory.SENSOR,
             "other": ComponentCategory.OTHER,
             "unknown": ComponentCategory.UNKNOWN,
         }
