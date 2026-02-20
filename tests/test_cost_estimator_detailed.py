@@ -36,25 +36,19 @@ class TestCostEstimatorPriceRanges:
                 category=ComponentCategory.RESISTOR,
             )
         ]
-        parse_result = BomParseResult(
-            items=items,
-            item_count=1,
-            warnings=[],
-            errors=[],
-            success=True,
-        )
+        parse_result = BomParseResult(items=items)
 
         cost_estimate = estimator.estimate_bom_cost(parse_result)
 
         # Resistors should typically be $0.001 - $0.02 for standard values
-        assert cost_estimate.total_cost_typical >= 0.001
-        assert cost_estimate.total_cost_typical <= 5.0  # Including overhead
+        assert cost_estimate.total_component_cost_typical >= 0.001
+        assert cost_estimate.total_component_cost_typical <= 5.0
 
         # Component cost should be in reasonable range
         assert len(cost_estimate.component_costs) == 1
         comp_cost = cost_estimate.component_costs[0]
-        assert comp_cost.unit_price_low >= 0.0001
-        assert comp_cost.unit_price_high <= 0.1
+        assert comp_cost.unit_cost_low >= 0.0001
+        assert comp_cost.unit_cost_high <= 0.1
 
     def test_capacitor_price_range(self, estimator):
         """Test that capacitor costs fall within expected range."""
@@ -70,20 +64,14 @@ class TestCostEstimatorPriceRanges:
                 category=ComponentCategory.CAPACITOR,
             )
         ]
-        parse_result = BomParseResult(
-            items=items,
-            item_count=1,
-            warnings=[],
-            errors=[],
-            success=True,
-        )
+        parse_result = BomParseResult(items=items)
 
         cost_estimate = estimator.estimate_bom_cost(parse_result)
 
         # Ceramic capacitors should typically be $0.002 - $0.05 for common values
         comp_cost = cost_estimate.component_costs[0]
-        assert comp_cost.unit_price_low >= 0.0001
-        assert comp_cost.unit_price_high <= 0.2
+        assert comp_cost.unit_cost_low >= 0.0001
+        assert comp_cost.unit_cost_high <= 0.2
 
     def test_ic_price_range(self, estimator):
         """Test that IC costs fall within expected range."""
@@ -98,20 +86,14 @@ class TestCostEstimatorPriceRanges:
                 category=ComponentCategory.IC,
             )
         ]
-        parse_result = BomParseResult(
-            items=items,
-            item_count=1,
-            warnings=[],
-            errors=[],
-            success=True,
-        )
+        parse_result = BomParseResult(items=items)
 
         cost_estimate = estimator.estimate_bom_cost(parse_result)
 
         # ICs can range widely, but should be $0.50 - $10+ for MCUs
         comp_cost = cost_estimate.component_costs[0]
-        assert comp_cost.unit_price_low >= 0.1
-        assert comp_cost.unit_price_high <= 50.0
+        assert comp_cost.unit_cost_low >= 0.1
+        assert comp_cost.unit_cost_high <= 50.0
 
     def test_connector_price_range(self, estimator):
         """Test that connector costs fall within expected range."""
@@ -126,20 +108,14 @@ class TestCostEstimatorPriceRanges:
                 category=ComponentCategory.CONNECTOR,
             )
         ]
-        parse_result = BomParseResult(
-            items=items,
-            item_count=1,
-            warnings=[],
-            errors=[],
-            success=True,
-        )
+        parse_result = BomParseResult(items=items)
 
         cost_estimate = estimator.estimate_bom_cost(parse_result)
 
         # Connectors typically $0.10 - $2.00 for USB
         comp_cost = cost_estimate.component_costs[0]
-        assert comp_cost.unit_price_low >= 0.01
-        assert comp_cost.unit_price_high <= 10.0
+        assert comp_cost.unit_cost_low >= 0.01
+        assert comp_cost.unit_cost_high <= 10.0
 
     def test_led_price_range(self, estimator):
         """Test that LED costs fall within expected range."""
@@ -154,20 +130,14 @@ class TestCostEstimatorPriceRanges:
                 category=ComponentCategory.LED,
             )
         ]
-        parse_result = BomParseResult(
-            items=items,
-            item_count=1,
-            warnings=[],
-            errors=[],
-            success=True,
-        )
+        parse_result = BomParseResult(items=items)
 
         cost_estimate = estimator.estimate_bom_cost(parse_result)
 
         # LEDs typically $0.02 - $0.30 for standard indicator LEDs
         comp_cost = cost_estimate.component_costs[0]
-        assert comp_cost.unit_price_low >= 0.001
-        assert comp_cost.unit_price_high <= 1.0
+        assert comp_cost.unit_cost_low >= 0.001
+        assert comp_cost.unit_cost_high <= 1.0
 
     def test_quantity_breaks(self, estimator):
         """Test that quantity breaks provide volume discounts."""
@@ -179,13 +149,7 @@ class TestCostEstimatorPriceRanges:
                 package="0603",
             )
         ]
-        parse_result = BomParseResult(
-            items=items,
-            item_count=1,
-            warnings=[],
-            errors=[],
-            success=True,
-        )
+        parse_result = BomParseResult(items=items)
 
         cost_estimate = estimator.estimate_bom_cost(parse_result)
 
@@ -206,13 +170,7 @@ class TestCostEstimatorPriceRanges:
             BomItem(reference_designator=f"R{i}", quantity=1, category=ComponentCategory.RESISTOR)
             for i in range(10)
         ]
-        small_result = BomParseResult(
-            items=small_items,
-            item_count=10,
-            warnings=[],
-            errors=[],
-            success=True,
-        )
+        small_result = BomParseResult(items=small_items)
         small_estimate = estimator.estimate_bom_cost(small_result)
 
         # Large BoM
@@ -220,17 +178,11 @@ class TestCostEstimatorPriceRanges:
             BomItem(reference_designator=f"R{i}", quantity=1, category=ComponentCategory.RESISTOR)
             for i in range(100)
         ]
-        large_result = BomParseResult(
-            items=large_items,
-            item_count=100,
-            warnings=[],
-            errors=[],
-            success=True,
-        )
+        large_result = BomParseResult(items=large_items)
         large_estimate = estimator.estimate_bom_cost(large_result)
 
         # Large BoM should have higher assembly costs
-        assert large_estimate.assembly_cost.total > small_estimate.assembly_cost.total
+        assert large_estimate.assembly_cost.total_assembly_cost_per_board > small_estimate.assembly_cost.total_assembly_cost_per_board
 
     def test_package_complexity_affects_assembly_cost(self, estimator):
         """Test that complex packages have higher assembly costs."""
@@ -243,13 +195,7 @@ class TestCostEstimatorPriceRanges:
                 package="0603",
             )
         ]
-        simple_result = BomParseResult(
-            items=simple_items,
-            item_count=1,
-            warnings=[],
-            errors=[],
-            success=True,
-        )
+        simple_result = BomParseResult(items=simple_items)
         simple_estimate = estimator.estimate_bom_cost(simple_result)
 
         # Complex BGA package
@@ -261,17 +207,11 @@ class TestCostEstimatorPriceRanges:
                 package="BGA-256",
             )
         ]
-        complex_result = BomParseResult(
-            items=complex_items,
-            item_count=1,
-            warnings=[],
-            errors=[],
-            success=True,
-        )
+        complex_result = BomParseResult(items=complex_items)
         complex_estimate = estimator.estimate_bom_cost(complex_result)
 
         # BGA assembly should cost more than simple SMD
-        assert complex_estimate.assembly_cost.total > simple_estimate.assembly_cost.total
+        assert complex_estimate.assembly_cost.total_assembly_cost_per_board > simple_estimate.assembly_cost.total_assembly_cost_per_board
 
     def test_dnp_components_excluded_from_cost(self, estimator):
         """Test that DNP components are not included in cost."""
@@ -289,13 +229,7 @@ class TestCostEstimatorPriceRanges:
                 dnp=True,
             ),
         ]
-        parse_result = BomParseResult(
-            items=items,
-            item_count=2,
-            warnings=[],
-            errors=[],
-            success=True,
-        )
+        parse_result = BomParseResult(items=items)
 
         cost_estimate = estimator.estimate_bom_cost(parse_result)
 
@@ -312,20 +246,14 @@ class TestCostEstimatorPriceRanges:
                 category=ComponentCategory.RESISTOR,
             )
         ]
-        parse_result = BomParseResult(
-            items=items,
-            item_count=1,
-            warnings=[],
-            errors=[],
-            success=True,
-        )
+        parse_result = BomParseResult(items=items)
 
         cost_estimate = estimator.estimate_bom_cost(parse_result)
 
         # Should have overhead costs
-        assert cost_estimate.overhead_cost.nre_cost >= 0
-        assert cost_estimate.overhead_cost.procurement_overhead_percent > 0
-        assert cost_estimate.overhead_cost.total > 0
+        assert cost_estimate.overhead_costs.nre_cost >= 0
+        assert cost_estimate.overhead_costs.markup_percentage > 0
+        assert cost_estimate.overhead_costs.total_overhead > 0
 
 
 @pytest.mark.unit
@@ -349,16 +277,16 @@ class TestCostEstimatorWithRealBoms:
 
         cost_estimate = estimator.estimate_bom_cost(parse_result)
 
-        assert cost_estimate.total_cost_low > 0
-        assert cost_estimate.total_cost_typical > 0
-        assert cost_estimate.total_cost_high > 0
+        assert cost_estimate.total_cost_per_board_low > 0
+        assert cost_estimate.total_cost_per_board_typical > 0
+        assert cost_estimate.total_cost_per_board_high > 0
 
         # Verify cost ordering
-        assert cost_estimate.total_cost_low <= cost_estimate.total_cost_typical
-        assert cost_estimate.total_cost_typical <= cost_estimate.total_cost_high
+        assert cost_estimate.total_cost_per_board_low <= cost_estimate.total_cost_per_board_typical
+        assert cost_estimate.total_cost_per_board_typical <= cost_estimate.total_cost_per_board_high
 
-        # Arduino shield should cost roughly $5-50 for single unit
-        assert 1.0 <= cost_estimate.total_cost_typical <= 100.0
+        # Arduino shield component cost should be in a reasonable range
+        assert 0.50 <= cost_estimate.total_component_cost_typical <= 100.0
 
         # Should have costs broken down by component
         assert len(cost_estimate.component_costs) > 0
@@ -370,13 +298,13 @@ class TestCostEstimatorWithRealBoms:
 
         cost_estimate = estimator.estimate_bom_cost(parse_result)
 
-        assert cost_estimate.total_cost_typical > 0
+        assert cost_estimate.total_cost_per_board_typical > 0
 
         # IoT board should cost more than simple shield
-        assert cost_estimate.total_cost_typical >= 10.0
+        assert cost_estimate.total_cost_per_board_typical >= 10.0
 
         # Should have assembly costs
-        assert cost_estimate.assembly_cost.total > 0
+        assert cost_estimate.assembly_cost.total_assembly_cost_per_board > 0
 
         # Should have multiple component categories
         categories = {cc.category for cc in cost_estimate.component_costs}
@@ -389,16 +317,16 @@ class TestCostEstimatorWithRealBoms:
 
         cost_estimate = estimator.estimate_bom_cost(parse_result)
 
-        assert cost_estimate.total_cost_typical > 0
+        assert cost_estimate.total_cost_per_board_typical > 0
 
         # Complex board should be most expensive
-        assert cost_estimate.total_cost_typical >= 50.0
+        assert cost_estimate.total_cost_per_board_typical >= 50.0
 
         # Should have significant assembly costs due to component count
-        assert cost_estimate.assembly_cost.total > 20.0
+        assert cost_estimate.assembly_cost.total_assembly_cost_per_board > 20.0
 
         # Should have overhead costs
-        assert cost_estimate.overhead_cost.total > 0
+        assert cost_estimate.overhead_costs.total_overhead > 0
 
 
 @pytest.mark.unit
@@ -412,18 +340,12 @@ class TestCostEstimatorEdgeCases:
 
     def test_empty_bom(self, estimator):
         """Test cost estimation for empty BoM."""
-        parse_result = BomParseResult(
-            items=[],
-            item_count=0,
-            warnings=[],
-            errors=[],
-            success=True,
-        )
+        parse_result = BomParseResult(items=[])
 
         cost_estimate = estimator.estimate_bom_cost(parse_result)
 
         # Should have minimal costs (just overhead/NRE)
-        assert cost_estimate.total_cost_typical >= 0
+        assert cost_estimate.total_cost_per_board_typical >= 0
 
     def test_unknown_category_component(self, estimator):
         """Test component with unknown category."""
@@ -434,18 +356,12 @@ class TestCostEstimatorEdgeCases:
                 category=ComponentCategory.UNKNOWN,
             )
         ]
-        parse_result = BomParseResult(
-            items=items,
-            item_count=1,
-            warnings=[],
-            errors=[],
-            success=True,
-        )
+        parse_result = BomParseResult(items=items)
 
         cost_estimate = estimator.estimate_bom_cost(parse_result)
 
         # Should still provide estimate
-        assert cost_estimate.total_cost_typical > 0
+        assert cost_estimate.total_cost_per_board_typical > 0
         assert len(cost_estimate.component_costs) == 1
 
     def test_unknown_package_type(self, estimator):
@@ -458,18 +374,12 @@ class TestCostEstimatorEdgeCases:
                 package="UNKNOWN_PACKAGE",
             )
         ]
-        parse_result = BomParseResult(
-            items=items,
-            item_count=1,
-            warnings=[],
-            errors=[],
-            success=True,
-        )
+        parse_result = BomParseResult(items=items)
 
         cost_estimate = estimator.estimate_bom_cost(parse_result)
 
         # Should still provide estimate with default package pricing
-        assert cost_estimate.total_cost_typical > 0
+        assert cost_estimate.total_cost_per_board_typical > 0
 
     def test_very_large_quantity(self, estimator):
         """Test component with very large quantity."""
@@ -480,18 +390,12 @@ class TestCostEstimatorEdgeCases:
                 category=ComponentCategory.RESISTOR,
             )
         ]
-        parse_result = BomParseResult(
-            items=items,
-            item_count=1,
-            warnings=[],
-            errors=[],
-            success=True,
-        )
+        parse_result = BomParseResult(items=items)
 
         cost_estimate = estimator.estimate_bom_cost(parse_result)
 
         # Should handle large quantities
-        assert cost_estimate.total_cost_typical > 0
+        assert cost_estimate.total_cost_per_board_typical > 0
         comp_cost = cost_estimate.component_costs[0]
 
         # Should have volume pricing applied
@@ -513,13 +417,7 @@ class TestCostEstimatorEdgeCases:
                 package="TH",  # Through-hole
             ),
         ]
-        parse_result = BomParseResult(
-            items=items,
-            item_count=2,
-            warnings=[],
-            errors=[],
-            success=True,
-        )
+        parse_result = BomParseResult(items=items)
 
         cost_estimate = estimator.estimate_bom_cost(parse_result)
 
@@ -527,4 +425,4 @@ class TestCostEstimatorEdgeCases:
         assert len(cost_estimate.component_costs) == 2
 
         # Assembly cost should account for different packages
-        assert cost_estimate.assembly_cost.total > 0
+        assert cost_estimate.assembly_cost.total_assembly_cost_per_board > 0

@@ -360,20 +360,42 @@ class PackageClassifier:
         return category_defaults.get(category, PackageType.OTHER)
 
 
+# Default category pricing when no config is provided
+_DEFAULT_CATEGORY_PRICING = {
+    "resistor": CategoryPricing(base_price_low=0.001, base_price_typical=0.005, base_price_high=0.02),
+    "capacitor": CategoryPricing(base_price_low=0.002, base_price_typical=0.01, base_price_high=0.10),
+    "inductor": CategoryPricing(base_price_low=0.05, base_price_typical=0.20, base_price_high=1.00),
+    "ic": CategoryPricing(base_price_low=0.10, base_price_typical=1.00, base_price_high=10.00),
+    "connector": CategoryPricing(base_price_low=0.10, base_price_typical=0.50, base_price_high=5.00),
+    "diode": CategoryPricing(base_price_low=0.01, base_price_typical=0.05, base_price_high=0.50),
+    "transistor": CategoryPricing(base_price_low=0.01, base_price_typical=0.10, base_price_high=1.00),
+    "led": CategoryPricing(base_price_low=0.01, base_price_typical=0.05, base_price_high=0.50),
+    "crystal": CategoryPricing(base_price_low=0.20, base_price_typical=0.80, base_price_high=3.00),
+    "switch": CategoryPricing(base_price_low=0.10, base_price_typical=0.50, base_price_high=3.00),
+    "relay": CategoryPricing(base_price_low=0.50, base_price_typical=2.00, base_price_high=10.00),
+    "fuse": CategoryPricing(base_price_low=0.05, base_price_typical=0.20, base_price_high=1.00),
+    "transformer": CategoryPricing(base_price_low=0.50, base_price_typical=2.00, base_price_high=20.00),
+    "other": CategoryPricing(base_price_low=0.01, base_price_typical=0.10, base_price_high=1.00),
+    "unknown": CategoryPricing(base_price_low=0.01, base_price_typical=0.10, base_price_high=1.00),
+}
+
+
 class CostEstimator:
     """Deterministic cost estimation engine."""
 
     def __init__(
         self,
-        config: CostModelConfig,
+        config: Optional[CostModelConfig] = None,
         llm_enrichment: Optional['LLMEnrichmentService'] = None
     ):
         """Initialize cost estimator with configuration.
 
         Args:
-            config: Cost model configuration
+            config: Cost model configuration (uses default if None)
             llm_enrichment: Optional LLM enrichment service for enhanced analysis
         """
+        if config is None:
+            config = CostModelConfig()
         self.config = config
         self.component_classifier = ComponentClassifier()
         self.package_classifier = PackageClassifier()
@@ -551,7 +573,7 @@ class CostEstimator:
         )
 
         # Build notes list
-        notes = list(item.notes) if item.notes else []
+        notes = [item.notes] if item.notes else []
         if llm_metadata:
             notes.append(
                 f"LLM classification (confidence: {llm_metadata['confidence']:.2f})"
@@ -599,7 +621,7 @@ class CostEstimator:
             manufacturer=item.manufacturer,
             manufacturer_part_number=item.manufacturer_part_number,
             description=item.description,
-            notes=notes,
+            notes="; ".join(notes) if notes else None,
         )
 
         return estimate, warnings
@@ -618,7 +640,11 @@ class CostEstimator:
         if category_str in self.config.category_pricing:
             return self.config.category_pricing[category_str]
 
-        # Return default pricing for unknown categories
+        # Use category-specific defaults if available
+        if category_str in _DEFAULT_CATEGORY_PRICING:
+            return _DEFAULT_CATEGORY_PRICING[category_str]
+
+        # Final fallback for completely unknown categories
         logger.warning(f"No pricing found for category {category_str}, using defaults")
         return CategoryPricing(
             base_price_low=0.01,
