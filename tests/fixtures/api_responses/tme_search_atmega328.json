@@ -1,0 +1,30 @@
+{
+  "Status": "OK",
+  "Data": {
+    "ProductList": [
+      {
+        "Symbol": "ATMEGA328P-AU",
+        "OriginalSymbol": "ATMEGA328P-AU",
+        "Producer": "MICROCHIP TECHNOLOGY",
+        "Description": "AVR RISC microcontroller; Flash:32kB; EEPROM:1024B; SRAM:2048B; Vcc:1.8-5.5V; TQFP32",
+        "OfferId": 1,
+        "Amount": 1250,
+        "Unit": "pcs",
+        "PriceType": "REGULAR",
+        "CustomerPrice": 3.28,
+        "Currency": "EUR",
+        "MinAmount": 1,
+        "Multiplier": 1,
+        "WeightedPrice": 3.28,
+        "PriceTiers": [
+          {"Amount": 1,    "PriceValue": 3.28},
+          {"Amount": 10,   "PriceValue": 2.71},
+          {"Amount": 100,  "PriceValue": 2.33},
+          {"Amount": 1000, "PriceValue": 1.98}
+        ]
+      }
+    ],
+    "CategoryList": [],
+    "Amount": 1
+  }
+}

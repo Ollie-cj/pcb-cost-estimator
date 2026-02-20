@@ -1,0 +1,60 @@
+{
+  "keywordSearchReturn": {
+    "products": [
+      {
+        "id": "9526341",
+        "sku": "9526341",
+        "displayName": "LM358N/NOPB - Texas Instruments - Op Amp, Dual, 1MHz, 3V to 32V, DIP-8",
+        "description": "Dual general-purpose operational amplifier in DIP-8 package",
+        "mfrName": "Texas Instruments",
+        "mfrPartNumber": "LM358N/NOPB",
+        "packSize": "DIP-8",
+        "packaging": "Through Hole",
+        "rohsStatusCode": "COMPLIANT",
+        "lifecycleStatus": "Active",
+        "dataSheetUrl": "https://www.ti.com/lit/ds/symlink/lm358-n.pdf",
+        "stock": {
+          "liveInventory": {
+            "value": 5432
+          }
+        },
+        "prices": [
+          {"from": 1,    "cost": 0.392},
+          {"from": 10,   "cost": 0.334},
+          {"from": 25,   "cost": 0.291},
+          {"from": 100,  "cost": 0.248},
+          {"from": 250,  "cost": 0.218},
+          {"from": 500,  "cost": 0.198},
+          {"from": 1000, "cost": 0.182}
+        ]
+      },
+      {
+        "id": "1457983",
+        "sku": "1457983",
+        "displayName": "LM358N - STMicroelectronics - Op Amp, Dual, 1MHz, 3V to 32V, DIP-8",
+        "description": "Dual general-purpose op amp, alternative vendor",
+        "mfrName": "STMicroelectronics",
+        "mfrPartNumber": "LM358N",
+        "packSize": "DIP-8",
+        "packaging": "Through Hole",
+        "rohsStatusCode": "COMPLIANT",
+        "lifecycleStatus": "Active",
+        "dataSheetUrl": "https://www.st.com/resource/en/datasheet/lm358n.pdf",
+        "stock": {
+          "liveInventory": {
+            "value": 8901
+          }
+        },
+        "prices": [
+          {"from": 1,    "cost": 0.374},
+          {"from": 10,   "cost": 0.316},
+          {"from": 25,   "cost": 0.276},
+          {"from": 100,  "cost": 0.235},
+          {"from": 500,  "cost": 0.189}
+        ]
+      }
+    ],
+    "numberOfResults": 2,
+    "premierFarnellPartNumberReturn": null
+  }
+}

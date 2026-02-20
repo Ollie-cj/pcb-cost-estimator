@@ -1,0 +1,12 @@
+{
+  "Status": "OK",
+  "Data": {
+    "ProductList": [
+      {
+        "Symbol": "ATMEGA328P-AU",
+        "Amount": 1250,
+        "Unit": "pcs"
+      }
+    ]
+  }
+}

@@ -101,7 +101,7 @@ class TestLLMProvider:
         assert response.data == {"result": "success"}
         assert response.tokens_used == 100
 
-    @patch('anthropic.Anthropic')
+    @patch('pcb_cost_estimator.llm_provider.Anthropic')
     def test_anthropic_provider_call_success(self, mock_anthropic):
         """Test successful Anthropic API call."""
         # Mock Anthropic response

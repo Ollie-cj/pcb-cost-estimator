@@ -168,3 +168,35 @@ cost_model:
     supply_chain_risk_low: 1.0
     supply_chain_risk_medium: 1.2
     supply_chain_risk_high: 1.5
+
+# Distributor API Configuration
+# Set enabled: true and supply an api_key to activate each distributor.
+# API keys can also be supplied via environment variables (see comments).
+distributors:
+  octopart:
+    enabled: false
+    api_key: ""        # or set OCTOPART_API_KEY env var
+
+  farnell:
+    enabled: false
+    api_key: ""        # or set FARNELL_API_KEY env var
+    # Regional store — valid values include:
+    #   uk.farnell.com, de.farnell.com, fr.farnell.com, it.farnell.com,
+    #   es.farnell.com, nl.farnell.com, be.farnell.com, pl.farnell.com,
+    #   au.element14.com, sg.element14.com, in.element14.com
+    store: uk.farnell.com
+
+  rs_components:
+    enabled: false
+    api_key: ""        # or set RS_API_KEY env var
+    # Locale/region — valid values: en (UK), de, fr, it, es, nl, be, pl, us
+    locale: en
+
+  tme:
+    enabled: false
+    api_key: ""        # TME App Token — or set TME_API_KEY env var
+    api_secret: ""     # TME API Secret — or set TME_API_SECRET env var
+    # ISO country code for pricing context (default: PL for Poland/EU)
+    country: PL
+    # ISO currency code
+    currency: EUR

@@ -64,6 +64,7 @@ output/
 !pyproject.toml
 !package.json
 !tsconfig.json
+!tests/fixtures/**/*.json
 
 # OS files
 .DS_Store

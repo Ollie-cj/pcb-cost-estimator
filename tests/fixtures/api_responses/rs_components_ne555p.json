@@ -1,0 +1,52 @@
+{
+  "products": [
+    {
+      "id": "524-1821",
+      "stockCode": "524-1821",
+      "description": "NE555P - Texas Instruments - Timer, Single, 100kHz, DIP-8",
+      "manufacturer": {
+        "name": "Texas Instruments",
+        "partNumber": "NE555P"
+      },
+      "packageType": "DIP-8",
+      "rohsCompliance": true,
+      "lifecycle": "Active",
+      "datasheetUrl": "https://www.ti.com/lit/ds/symlink/ne555.pdf",
+      "stock": {
+        "quantity": 12450
+      },
+      "leadTime": null,
+      "priceBreaks": [
+        {"quantity": 1,    "unitPrice": 0.295},
+        {"quantity": 10,   "unitPrice": 0.247},
+        {"quantity": 25,   "unitPrice": 0.213},
+        {"quantity": 100,  "unitPrice": 0.182},
+        {"quantity": 500,  "unitPrice": 0.154},
+        {"quantity": 1000, "unitPrice": 0.141}
+      ]
+    },
+    {
+      "id": "176-5460",
+      "stockCode": "176-5460",
+      "description": "NE555P - ON Semiconductor - Timer, Single, DIP-8",
+      "manufacturer": {
+        "name": "ON Semiconductor",
+        "partNumber": "NE555P"
+      },
+      "packageType": "DIP-8",
+      "rohsCompliance": true,
+      "lifecycle": "Active",
+      "datasheetUrl": "https://www.onsemi.com/pub/Collateral/MC1455B-D.PDF",
+      "stock": {
+        "quantity": 3200
+      },
+      "leadTime": null,
+      "priceBreaks": [
+        {"quantity": 1,   "unitPrice": 0.278},
+        {"quantity": 10,  "unitPrice": 0.231},
+        {"quantity": 100, "unitPrice": 0.170}
+      ]
+    }
+  ],
+  "totalProducts": 2
+}
